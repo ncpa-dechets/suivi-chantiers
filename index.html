@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Suivi des chantiers — Dalles PAV / PDR / Cabanes — NCPA</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --rouge:#B91E27; --vert:#B1B993; --gris:#8a8a8a;
+    --orange:#E67E22; --vert-ok:#2E7D32; --fond:#f7f7f5; --texte:#222;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:Calibri, 'Avenir', 'Segoe UI', Arial, sans-serif; background:var(--fond); color:var(--texte);}
+
+  /* ---------- En-tête ---------- */
+  header{background:#fff; border-bottom:4px solid var(--rouge); padding:10px 18px; display:flex; align-items:center; gap:16px; flex-wrap:wrap;}
+  header h1{font-size:1.15rem; font-weight:700;}
+  header .sous-titre{font-size:.82rem; color:#666;}
+  .maj{margin-left:auto; font-size:.78rem; color:#666;}
+
+  /* ---------- Onglets ---------- */
+  nav{display:flex; gap:0; background:#fff; border-bottom:1px solid #ddd; padding:0 18px;}
+  nav button{border:none; background:none; padding:10px 20px; font-size:.95rem; font-family:inherit; cursor:pointer; border-bottom:3px solid transparent; color:#555;}
+  nav button.actif{border-bottom-color:var(--rouge); color:var(--rouge); font-weight:700;}
+
+  /* ---------- Filtres ---------- */
+  .filtres{display:flex; gap:10px; align-items:center; padding:8px 18px; background:#fff; border-bottom:1px solid #e5e5e5; flex-wrap:wrap; font-size:.85rem;}
+  .filtres select{padding:4px 8px; border:1px solid #ccc; border-radius:4px; font-family:inherit; font-size:.85rem; background:#fff;}
+  .chip{padding:4px 10px; border:1px solid #ccc; border-radius:14px; cursor:pointer; user-select:none; background:#fff;}
+  .chip.actif{background:var(--vert); border-color:var(--vert); color:#222; font-weight:600;}
+  .filtres .reinit{margin-left:auto; background:none; border:none; color:var(--rouge); cursor:pointer; font-size:.82rem; text-decoration:underline; font-family:inherit;}
+
+  /* ---------- Carte ---------- */
+  #vue-carte{position:relative;}
+  #carte{height:calc(100vh - 150px); min-height:420px;}
+  .basemap-switch{position:absolute; top:10px; right:10px; z-index:1000; background:#fff; border-radius:4px; box-shadow:0 1px 4px rgba(0,0,0,.3); overflow:hidden; display:flex;}
+  .basemap-switch button{border:none; background:#fff; padding:6px 12px; cursor:pointer; font-family:inherit; font-size:.82rem;}
+  .basemap-switch button.actif{background:var(--rouge); color:#fff;}
+  .legende{position:absolute; bottom:20px; left:10px; z-index:1000; background:rgba(255,255,255,.95); border-radius:4px; box-shadow:0 1px 4px rgba(0,0,0,.3); padding:10px 12px; font-size:.78rem; line-height:1.7;}
+  .legende b{display:block; margin-bottom:2px;}
+  .legende .lig{display:flex; align-items:center; gap:7px;}
+  .pastille{width:12px; height:12px; border-radius:50%; display:inline-block; flex:none;}
+
+  /* ---------- Popup fiche site ---------- */
+  .leaflet-popup-content{margin:12px 14px; font-family:Calibri, Arial, sans-serif;}
+  .fiche h3{font-size:.98rem; margin-bottom:2px; color:var(--rouge);}
+  .fiche .type{font-size:.8rem; color:#555; margin-bottom:8px;}
+  .fiche ul{list-style:none; font-size:.8rem;}
+  .fiche li{padding:1.5px 0; display:flex; gap:6px; align-items:baseline;}
+  .fiche .ico{width:16px; flex:none; text-align:center;}
+  .fiche .dt{color:#777; font-size:.74rem; margin-left:auto; padding-left:8px;}
+  .fiche a{color:var(--rouge); font-size:.8rem;}
+  .badge-prio{display:inline-block; font-size:.7rem; background:#eee; border-radius:3px; padding:1px 6px; margin-left:6px; vertical-align:middle;}
+
+  /* ---------- Volet Suivi ---------- */
+  #vue-suivi{padding:16px 18px; display:none; max-width:1200px; margin:0 auto;}
+  .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:20px;}
+  .kpi{background:#fff; border:1px solid #e2e2e2; border-left:4px solid var(--vert); border-radius:4px; padding:10px 14px;}
+  .kpi .val{font-size:1.5rem; font-weight:700;}
+  .kpi .lab{font-size:.76rem; color:#666;}
+  .kpi.alerte{border-left-color:var(--orange);}
+  .kpi.ok{border-left-color:var(--vert-ok);}
+
+  h2{font-size:1rem; margin:18px 0 8px; color:var(--rouge);}
+  .communes-bars{background:#fff; border:1px solid #e2e2e2; border-radius:4px; padding:12px 14px;}
+  .cbar{display:grid; grid-template-columns:190px 1fr 90px; gap:10px; align-items:center; font-size:.83rem; padding:3px 0;}
+  .barre{background:#eee; border-radius:3px; height:12px; overflow:hidden;}
+  .barre>div{height:100%; background:var(--rouge);}
+  .cbar .pct{color:#666; font-size:.78rem; text-align:right;}
+
+  table{width:100%; border-collapse:collapse; background:#fff; font-size:.82rem; border:1px solid #e2e2e2;}
+  th{background:#f0f0ec; text-align:left; padding:7px 8px; font-size:.76rem; position:sticky; top:0;}
+  td{padding:6px 8px; border-top:1px solid #eee;}
+  tr:hover td{background:#fbf7f7;}
+  .mini-steps{display:flex; gap:2px;}
+  .mini-steps span{width:10px; height:10px; border-radius:2px; background:#e0e0e0; display:inline-block;}
+  .mini-steps span.d{background:var(--vert-ok);}
+  .mini-steps span.a{background:var(--orange);}
+  .statut-pill{display:inline-block; padding:1px 8px; border-radius:10px; font-size:.72rem; color:#fff;}
+
+  /* ---------- Message de chargement / erreur ---------- */
+  #message{padding:40px 18px; text-align:center; display:none;}
+  #message .boite{display:inline-block; background:#fff; border:1px solid #ddd; border-radius:6px; padding:24px 30px; max-width:520px; text-align:left; font-size:.9rem; line-height:1.5;}
+  #message input[type=file]{margin-top:12px;}
+
+  @media(max-width:700px){
+    .cbar{grid-template-columns:110px 1fr 60px;}
+    #carte{height:calc(100vh - 210px);}
+  }
+  @media print{
+    header, nav, .filtres, .basemap-switch{display:none;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Suivi des chantiers — dalles PAV / PDR / cabanes</h1>
+    <div class="sous-titre">Normandie Cabourg Pays d'Auge — Direction de la Maîtrise des Déchets</div>
+  </div>
+  <div class="maj" id="maj"></div>
+</header>
+
+<nav>
+  <button id="btn-carte" class="actif" onclick="montrerVue('carte')">Carte</button>
+  <button id="btn-suivi" onclick="montrerVue('suivi')">Suivi</button>
+</nav>
+
+<div class="filtres" id="filtres" style="display:none;">
+  <select id="f-commune"><option value="">Toutes les communes</option></select>
+  <span class="chip actif" data-type="Dalle PDR">PDR</span>
+  <span class="chip actif" data-type="Dalle borne à verre">Bornes à verre</span>
+  <span class="chip actif" data-type="Dalle cabane à cartons">Cabanes à cartons</span>
+  <select id="f-prio">
+    <option value="">Toutes priorités</option>
+    <option value="1">Priorité 1</option><option value="2">Priorité 2</option>
+    <option value="3">Priorité 3</option><option value="4">Priorité 4</option>
+  </select>
+  <select id="f-statut">
+    <option value="">Tous les avancements</option>
+    <option value="alancer">À lancer</option>
+    <option value="encours">En cours</option>
+    <option value="alerte">Alerte / blocage</option>
+    <option value="termine">Terminé</option>
+  </select>
+  <button class="reinit" onclick="reinitFiltres()">Réinitialiser</button>
+</div>
+
+<div id="message">
+  <div class="boite" id="message-contenu"></div>
+</div>
+
+<div id="vue-carte">
+  <div id="carte"></div>
+  <div class="basemap-switch">
+    <button id="bm-plan" class="actif" onclick="basculerFond('plan')">Plan</button>
+    <button id="bm-ortho" onclick="basculerFond('ortho')">Photo aérienne</button>
+  </div>
+  <div class="legende">
+    <b>Type de chantier</b>
+    <div class="lig"><svg width="14" height="14"><rect x="2" y="2" width="10" height="10" fill="#777" stroke="#fff"/></svg> PDR (+ claustra)</div>
+    <div class="lig"><svg width="14" height="14"><circle cx="7" cy="7" r="5" fill="#777" stroke="#fff"/></svg> Borne à verre</div>
+    <div class="lig"><svg width="14" height="14"><polygon points="7,1 13,12 1,12" fill="#777" stroke="#fff"/></svg> Cabane à cartons</div>
+    <b style="margin-top:6px;">Avancement</b>
+    <div class="lig"><span class="pastille" style="background:#8a8a8a"></span> À lancer</div>
+    <div class="lig"><span class="pastille" style="background:#B91E27"></span> En cours</div>
+    <div class="lig"><span class="pastille" style="background:#E67E22"></span> Alerte réseau / blocage</div>
+    <div class="lig"><span class="pastille" style="background:#2E7D32"></span> Terminé</div>
+  </div>
+</div>
+
+<div id="vue-suivi">
+  <div class="kpis" id="kpis"></div>
+  <h2>Avancement par commune</h2>
+  <div class="communes-bars" id="communes-bars"></div>
+  <h2>Détail des sites <span id="compteur-table" style="color:#666;font-size:.8rem;font-weight:400;"></span></h2>
+  <div style="overflow-x:auto;">
+    <table id="table-sites">
+      <thead><tr>
+        <th>Commune</th><th>Type</th><th>Prio.</th><th>Étapes (9)</th><th>Étape en cours</th><th>Avancement</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   CONFIGURATION — à adapter si le nom du fichier change
+   Le fichier Excel doit être commité dans le même dépôt
+   GitHub que cette page (même dossier).
+   ========================================================= */
+const CONFIG = {
+  fichierExcel: "DT-DICT-DALLES_BETON_avec_RETROPLANNING.xlsx",
+  onglet: "CHANTIERS"
+};
+
+/* Les 9 étapes du circuit, dans l'ordre des colonnes H à P */
+const ETAPES = [
+  { nom: "Convention retournée signée",      col: 7,  mode: "dateOuiNon" },
+  { nom: "Implantation validée par commune", col: 8,  mode: "liste", fait: ["Validé"] },
+  { nom: "DT-DICT réalisée",                 col: 9,  mode: "liste", fait: ["Déposée","Récépissés reçus","Calé"], alerte: ["Réseau détecté"] },
+  { nom: "Retour DT-DICT",                   col: 10, mode: "liste", fait: ["RAS"], alerte: ["Réseau dans l'emprise"] },
+  { nom: "Validation NCPA / Commune",        col: 11, mode: "liste", fait: ["Obtenu"], encours: ["Demandé"] },
+  { nom: "Préparation / signalisation",      col: 12, mode: "liste", fait: ["Fait"], encours: ["En cours"] },
+  { nom: "Début travaux",                    col: 13, mode: "dateOuiNon" },
+  { nom: "Fin travaux",                      col: 14, mode: "dateOuiNon" },
+  { nom: "Mise en place équipements",        col: 15, mode: "dateOuiNon" }
+];
+
+const COULEURS = { alancer:"#8a8a8a", encours:"#B91E27", alerte:"#E67E22", termine:"#2E7D32" };
+const LIBELLES = { alancer:"À lancer", encours:"En cours", alerte:"Alerte", termine:"Terminé" };
+
+let sites = [];          // tous les sites analysés
+let carte, calquePoints; // objets Leaflet
+let fonds = {};          // fonds de carte
+
+/* ---------- Lecture du fichier Excel ---------- */
+function demarrer(){
+  fetch(CONFIG.fichierExcel)
+    .then(r => { if(!r.ok) throw new Error("HTTP " + r.status); return r.arrayBuffer(); })
+    .then(buf => chargerClasseur(buf))
+    .catch(err => afficherErreur(err));
+}
+
+function chargerClasseur(buf){
+  // cellDates:true => les dates Excel deviennent des objets Date JavaScript
+  const wb = XLSX.read(buf, { cellDates:true });
+  const ws = wb.Sheets[CONFIG.onglet];
+  if(!ws){ afficherErreur(new Error("Onglet « " + CONFIG.onglet + " » introuvable")); return; }
+  // header:1 => tableau de tableaux ; range:1 => on saute la ligne 1 (vide)
+  const lignes = XLSX.utils.sheet_to_json(ws, { header:1, range:1, defval:null });
+  sites = [];
+  for(let i = 1; i < lignes.length; i++){   // i=0 : ligne d'en-têtes
+    const l = lignes[i];
+    if(!l || !l[1]) continue;               // pas de nom de commune => ligne vide
+    const lat = parseFloat(String(l[3]||"").trim());
+    const lng = parseFloat(String(l[4]||"").trim());
+    const etapes = ETAPES.map(e => etatEtape(e, l[e.col]));
+    const faites = etapes.filter(e => e.etat === "fait").length;
+    const alerte  = etapes.some(e => e.alerte || e.etat === "bloque");
+    const enCours = etapes.some(e => e.etat === "encours");
+    let statut = "alancer";
+    if(faites === 9) statut = "termine";
+    else if(alerte) statut = "alerte";
+    else if(faites > 0 || enCours) statut = "encours";
+    const prochaine = etapes.find(e => e.etat !== "fait");
+    sites.push({
+      insee: l[0], commune: String(l[1]).trim(), type: String(l[2]||"").trim(),
+      lat: isNaN(lat) ? null : lat, lng: isNaN(lng) ? null : lng,
+      prio: l[6], etapes, faites, statut,
+      etapeEnCours: prochaine ? prochaine.nom : "Terminé"
+    });
+  }
+  document.getElementById("message").style.display = "none";
+  document.getElementById("filtres").style.display = "flex";
+  document.getElementById("maj").textContent = sites.length + " sites chargés";
+  initFiltres();
+  initCarte();
+  toutRafraichir();
+}
+
+/* État d'une étape à partir de la valeur de la cellule */
+function etatEtape(def, v){
+  const res = { nom: def.nom, etat: "afaire", date: null, alerte: false, brut: v };
+  if(v === null || v === undefined || v === "") return res;
+
+  if(def.mode === "dateOuiNon"){
+    const d = versDate(v);
+    if(d){ res.etat = "fait"; res.date = d; return res; }
+    const s = String(v).trim().toLowerCase();
+    if(s === "oui") res.etat = "fait";
+    else if(s === "non") res.etat = "bloque";
+    return res;
+  }
+  // mode liste (menus déroulants du fichier Excel)
+  const s = String(v).trim();
+  if(def.fait && def.fait.includes(s)) res.etat = "fait";
+  if(def.alerte && def.alerte.includes(s)){ res.etat = "fait"; res.alerte = true; }
+  if(def.encours && def.encours.includes(s)) res.etat = "encours";
+  return res;
+}
+
+function versDate(v){
+  if(v instanceof Date && !isNaN(v)) return v;
+  if(typeof v === "number" && v > 40000 && v < 60000)      // n° de série Excel
+    return new Date(Math.round((v - 25569) * 86400 * 1000));
+  return null;
+}
+function fmtDate(d){ return d ? d.toLocaleDateString("fr-FR") : ""; }
+
+/* ---------- Carte ---------- */
+function initCarte(){
+  carte = L.map("carte", { preferCanvas:true }).setView([49.24, -0.05], 11);
+  fonds.plan = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    { attribution:"© OpenStreetMap, © CARTO", maxZoom:20 });
+  fonds.ortho = L.tileLayer(
+    "https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/jpeg&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
+    { attribution:"© IGN — Géoplateforme", maxZoom:20,
+      errorTileUrl:"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" });
+  fonds.plan.addTo(carte);
+  calquePoints = L.layerGroup().addTo(carte);
+}
+
+function basculerFond(nom){
+  Object.values(fonds).forEach(f => carte.removeLayer(f));
+  fonds[nom].addTo(carte);
+  document.getElementById("bm-plan").classList.toggle("actif", nom === "plan");
+  document.getElementById("bm-ortho").classList.toggle("actif", nom === "ortho");
+}
+
+/* Marqueur SVG : forme = type de chantier, couleur = avancement */
+function iconeSite(s){
+  const c = COULEURS[s.statut];
+  let forme;
+  if(s.type === "Dalle PDR")
+    forme = '<rect x="3" y="3" width="14" height="14" fill="'+c+'" stroke="#fff" stroke-width="2"/>';
+  else if(s.type === "Dalle cabane à cartons")
+    forme = '<polygon points="10,2 18,17 2,17" fill="'+c+'" stroke="#fff" stroke-width="2"/>';
+  else
+    forme = '<circle cx="10" cy="10" r="7" fill="'+c+'" stroke="#fff" stroke-width="2"/>';
+  return L.divIcon({
+    html:'<svg width="20" height="20" style="filter:drop-shadow(0 1px 1px rgba(0,0,0,.4));">'+forme+'</svg>',
+    className:"", iconSize:[20,20], iconAnchor:[10,10]
+  });
+}
+
+function fichePopup(s){
+  const icones = { fait:"✅", encours:"🔶", bloque:"❌", afaire:"○" };
+  let h = '<div class="fiche"><h3>' + s.commune +
+          '<span class="badge-prio">Prio. ' + (s.prio ?? "–") + '</span></h3>' +
+          '<div class="type">' + s.type + ' — ' + s.faites + '/9 étapes</div><ul>';
+  s.etapes.forEach(e => {
+    const ico = e.alerte ? "⚠️" : icones[e.etat];
+    h += '<li><span class="ico">' + ico + '</span>' + e.nom +
+         (e.date ? '<span class="dt">' + fmtDate(e.date) + '</span>' :
+          (e.brut && e.etat !== "afaire" && !(e.brut instanceof Date) ? '<span class="dt">' + e.brut + '</span>' : "")) +
+         '</li>';
+  });
+  h += '</ul>';
+  if(s.lat !== null)
+    h += '<a href="https://www.google.com/maps?q=' + s.lat + ',' + s.lng + '" target="_blank">Voir sur Google Maps ↗</a>';
+  return h + '</div>';
+}
+
+/* ---------- Filtres ---------- */
+function initFiltres(){
+  const sel = document.getElementById("f-commune");
+  [...new Set(sites.map(s => s.commune))].sort().forEach(c => {
+    const o = document.createElement("option"); o.value = c; o.textContent = c; sel.appendChild(o);
+  });
+  document.querySelectorAll(".filtres select").forEach(e => e.onchange = toutRafraichir);
+  document.querySelectorAll(".chip").forEach(ch =>
+    ch.onclick = () => { ch.classList.toggle("actif"); toutRafraichir(); });
+}
+
+function reinitFiltres(){
+  document.querySelectorAll(".filtres select").forEach(e => e.value = "");
+  document.querySelectorAll(".chip").forEach(ch => ch.classList.add("actif"));
+  toutRafraichir();
+}
+
+function sitesFiltres(){
+  const commune = document.getElementById("f-commune").value;
+  const prio    = document.getElementById("f-prio").value;
+  const statut  = document.getElementById("f-statut").value;
+  const types   = [...document.querySelectorAll(".chip.actif")].map(c => c.dataset.type);
+  return sites.filter(s =>
+    (!commune || s.commune === commune) &&
+    (!prio    || String(s.prio) === prio) &&
+    (!statut  || s.statut === statut) &&
+    types.includes(s.type)
+  );
+}
+
+/* ---------- Rafraîchissement des deux volets ---------- */
+function toutRafraichir(){
+  const liste = sitesFiltres();
+  majCarte(liste);
+  majSuivi(liste);
+}
+
+function majCarte(liste){
+  calquePoints.clearLayers();
+  const pts = [];
+  liste.forEach(s => {
+    if(s.lat === null) return;
+    pts.push([s.lat, s.lng]);
+    L.marker([s.lat, s.lng], { icon: iconeSite(s) })
+      .bindPopup(fichePopup(s), { maxWidth: 340 })
+      .addTo(calquePoints);
+  });
+  if(pts.length) carte.fitBounds(pts, { padding:[30,30], maxZoom:14 });
+}
+
+function majSuivi(liste){
+  /* Indicateurs clés */
+  const n = liste.length;
+  const cpt = idx => liste.filter(s => s.etapes[idx].etat === "fait").length;
+  const kpis = [
+    { lab:"Sites (filtre actif)", val:n, cls:"" },
+    { lab:"Conventions signées", val:cpt(0), cls:"" },
+    { lab:"Implantations validées", val:cpt(1), cls:"" },
+    { lab:"DT-DICT déposées", val:cpt(2), cls:"" },
+    { lab:"Alertes réseau / blocages", val:liste.filter(s => s.statut === "alerte").length, cls:"alerte" },
+    { lab:"Chantiers terminés", val:liste.filter(s => s.statut === "termine").length, cls:"ok" }
+  ];
+  document.getElementById("kpis").innerHTML = kpis.map(k =>
+    '<div class="kpi ' + k.cls + '"><div class="val">' + k.val + '</div><div class="lab">' + k.lab + '</div></div>'
+  ).join("");
+
+  /* Barres par commune */
+  const parCommune = {};
+  liste.forEach(s => {
+    (parCommune[s.commune] = parCommune[s.commune] || []).push(s);
+  });
+  document.getElementById("communes-bars").innerHTML =
+    Object.keys(parCommune).sort().map(c => {
+      const ss = parCommune[c];
+      const pct = Math.round(100 * ss.reduce((a,s) => a + s.faites, 0) / (9 * ss.length));
+      return '<div class="cbar"><div>' + c + ' <span style="color:#999;">(' + ss.length + ')</span></div>' +
+             '<div class="barre"><div style="width:' + pct + '%"></div></div>' +
+             '<div class="pct">' + pct + ' %</div></div>';
+    }).join("") || '<div style="color:#888;font-size:.85rem;">Aucun site ne correspond aux filtres.</div>';
+
+  /* Tableau détaillé */
+  const sansGps = liste.filter(s => s.lat === null).length;
+  document.getElementById("compteur-table").textContent =
+    "— " + n + " site" + (n>1?"s":"") + (sansGps ? " (" + sansGps + " sans coordonnées GPS, non affiché(s) sur la carte)" : "");
+  const tri = [...liste].sort((a,b) => (a.prio||9) - (b.prio||9) || a.commune.localeCompare(b.commune));
+  document.querySelector("#table-sites tbody").innerHTML = tri.map(s => {
+    const minis = s.etapes.map(e =>
+      '<span class="' + (e.alerte ? "a" : (e.etat === "fait" ? "d" : "")) + '" title="' + e.nom + '"></span>').join("");
+    return '<tr><td>' + s.commune + '</td><td>' + s.type.replace("Dalle ","") + '</td><td>' + (s.prio ?? "–") +
+           '</td><td><div class="mini-steps">' + minis + '</div></td><td>' + s.etapeEnCours +
+           '</td><td><span class="statut-pill" style="background:' + COULEURS[s.statut] + '">' +
+           LIBELLES[s.statut] + '</span></td></tr>';
+  }).join("");
+}
+
+/* ---------- Navigation entre volets ---------- */
+function montrerVue(nom){
+  document.getElementById("vue-carte").style.display = nom === "carte" ? "block" : "none";
+  document.getElementById("vue-suivi").style.display = nom === "suivi" ? "block" : "none";
+  document.getElementById("btn-carte").classList.toggle("actif", nom === "carte");
+  document.getElementById("btn-suivi").classList.toggle("actif", nom === "suivi");
+  if(nom === "carte" && carte) setTimeout(() => carte.invalidateSize(), 60);
+}
+
+/* ---------- Erreur de chargement + secours fichier local ---------- */
+function afficherErreur(err){
+  const m = document.getElementById("message");
+  m.style.display = "block";
+  document.getElementById("message-contenu").innerHTML =
+    "<b>Le fichier Excel n'a pas pu être chargé.</b><br>" +
+    "Vérifie que <code>" + CONFIG.fichierExcel + "</code> est bien commité dans le même dossier que cette page " +
+    "(nom exact, majuscules comprises).<br>" +
+    "<span style='color:#888;font-size:.8rem;'>Détail : " + err.message +
+    " — en ouverture locale (file://), le chargement automatique est bloqué par le navigateur.</span><br>" +
+    "En attendant, tu peux charger le fichier manuellement :<br>" +
+    "<input type='file' accept='.xlsx' onchange='chargerLocal(this)'>";
+}
+function chargerLocal(input){
+  const f = input.files[0];
+  if(!f) return;
+  const lecteur = new FileReader();
+  lecteur.onload = e => chargerClasseur(e.target.result);
+  lecteur.readAsArrayBuffer(f);
+}
+
+demarrer();
+</script>
+</body>
+</html>
