@@ -1,458 +1,814 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Suivi des chantiers — Dalles PAV / PDR / Cabanes — NCPA</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Reconnaissance terrain — Dalles béton | NCPA</title>
+
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
 <style>
-  :root{
-    --rouge:#B91E27; --vert:#B1B993; --gris:#8a8a8a;
-    --orange:#E67E22; --vert-ok:#2E7D32; --fond:#f7f7f5; --texte:#222;
+:root{
+  --rouge:#B91E27; --vert:#B1B993;
+  --gris:#5a5f66; --gris-clair:#eceef0; --bord:#d8dbdf;
+  --fond:#f7f8f9; --blanc:#fff;
+  --verre:#2E7D9A; --carton:#C77D2E; --pdr:#B91E27; --autre:#7a7f86;
+  --ok:#2E7D32; --warn:#E08600; --danger:#C62828;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+body{
+  font-family:Calibri,"Segoe UI",system-ui,sans-serif;
+  background:var(--fond); color:#22262b; font-size:15px;
+  display:flex; flex-direction:column; height:100vh; overflow:hidden;
+}
+
+/* ---------- En-tête ---------- */
+header{
+  background:var(--blanc); border-bottom:3px solid var(--rouge);
+  padding:8px 14px; flex:0 0 auto; display:flex; align-items:center; gap:12px;
+}
+.eyebrow{font-size:10px; letter-spacing:.13em; text-transform:uppercase; color:var(--rouge); font-weight:700}
+header h1{margin:1px 0 0; font-size:17px; font-weight:600}
+.hdr-right{margin-left:auto; display:flex; gap:6px; align-items:center}
+.pill{font-size:11px; padding:3px 9px; border-radius:20px; background:var(--gris-clair); color:var(--gris)}
+.pill.on{background:var(--ok); color:#fff}
+.pill.off{background:var(--danger); color:#fff}
+
+/* ---------- Corps ---------- */
+#body{flex:1 1 auto; height:0; display:flex}
+#panel{
+  width:300px; flex:0 0 300px; background:var(--blanc);
+  border-right:1px solid var(--bord); overflow-y:auto; padding:12px;
+}
+#mapwrap{flex:1 1 auto; height:100%; position:relative}
+#map{position:relative; width:100%; height:100%}
+
+/* ---------- Panneau ---------- */
+.sec{margin-bottom:16px}
+.sec > h3{
+  margin:0 0 7px; font-size:11px; text-transform:uppercase; letter-spacing:.08em;
+  color:var(--gris); border-bottom:1px solid var(--bord); padding-bottom:4px;
+}
+label.f{display:block; font-size:12px; color:var(--gris); margin:6px 0 2px}
+/* 16px : en dessous, iOS zoome automatiquement à chaque clic dans un champ */
+input,select,textarea,button{font-family:inherit; font-size:16px}
+input[type=text],input[type=number],select,textarea{
+  width:100%; padding:11px 10px; border:1px solid var(--bord); border-radius:6px; background:#fff;
+  min-height:44px; -webkit-appearance:none; appearance:none;
+}
+select{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8'><path d='M1 1l5 5 5-5' stroke='%235a5f66' stroke-width='2' fill='none'/></svg>");
+  background-repeat:no-repeat; background-position:right 11px center; padding-right:30px}
+textarea{min-height:80px; resize:vertical}
+button{
+  cursor:pointer; border:1px solid var(--bord); background:#fff; border-radius:6px;
+  padding:11px 12px; font-weight:600; color:#22262b; min-height:44px;
+}
+button:hover{background:var(--gris-clair)}
+button.primary{background:var(--rouge); border-color:var(--rouge); color:#fff}
+button.primary:hover{filter:brightness(1.1)}
+button.wide{width:100%; margin-top:6px}
+.row2{display:flex; gap:6px}
+.row2>*{flex:1}
+
+.chk{display:flex; align-items:center; gap:7px; font-size:13px; margin:4px 0; cursor:pointer}
+.chk input{width:auto; margin:0}
+.dot{width:12px; height:12px; border-radius:50%; flex:0 0 12px; border:1px solid rgba(0,0,0,.25)}
+
+.stats{display:flex; flex-wrap:wrap; gap:6px}
+.stat{flex:1 1 45%; background:var(--fond); border:1px solid var(--bord); border-radius:6px; padding:7px 8px}
+.stat b{display:block; font-size:20px; line-height:1.1}
+.stat span{font-size:11px; color:var(--gris)}
+
+.muted{font-size:11.5px; color:var(--gris); line-height:1.45}
+
+/* ---------- Fiche terrain ---------- */
+#fiche{
+  position:fixed; top:0; right:0; width:440px; max-width:100%; height:100%;
+  background:#fff; border-left:1px solid var(--bord); box-shadow:-4px 0 18px rgba(0,0,0,.13);
+  transform:translateX(105%); transition:transform .22s ease; z-index:1200;
+  display:flex; flex-direction:column;
+}
+#fiche.open{transform:none}
+#fiche header{border-bottom:3px solid var(--rouge); display:block; padding:10px 14px}
+#fiche .close{position:absolute; top:8px; right:10px; border:none; background:none; font-size:24px; line-height:1; padding:2px 8px}
+#ficheBody{flex:1 1 auto; overflow-y:auto; padding:12px 14px 20px}
+#ficheFoot{flex:0 0 auto; border-top:1px solid var(--bord); padding:10px 14px; background:var(--fond)}
+
+fieldset{border:1px solid var(--bord); border-radius:7px; padding:8px 10px 12px; margin:0 0 12px}
+legend{font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var(--rouge); font-weight:700; padding:0 5px}
+.help{font-size:12px; color:var(--gris); margin:3px 0 0; line-height:1.35}
+
+/* sections repliables */
+.acc{border:1px solid var(--bord); border-radius:8px; margin:0 0 10px; overflow:hidden; background:#fff}
+.acc > .acc-h{
+  width:100%; display:flex; align-items:center; gap:9px; text-align:left;
+  border:none; border-radius:0; background:var(--fond); padding:13px 12px; font-size:14.5px;
+}
+.acc > .acc-h:hover{background:var(--gris-clair)}
+.acc > .acc-h .cnt{margin-left:auto; font-size:12px; font-weight:600; color:var(--gris);
+  background:#fff; border:1px solid var(--bord); border-radius:11px; padding:2px 9px}
+.acc > .acc-h .cnt.full{background:var(--ok); color:#fff; border-color:var(--ok)}
+.acc > .acc-h .chev{transition:transform .18s; color:var(--rouge); font-size:13px}
+.acc.open > .acc-h .chev{transform:rotate(90deg)}
+.acc > .acc-c{display:none; padding:4px 12px 14px}
+.acc.open > .acc-c{display:block}
+.acc-c > div + div{margin-top:12px}
+
+#overlay{position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:1100; display:none}
+#overlay.show{display:block}
+#btnLoc{
+  position:absolute; right:11px; bottom:24px; z-index:800; width:46px; height:46px;
+  border-radius:50%; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.3); font-size:19px; padding:0;
+}
+
+.photos{display:flex; flex-wrap:wrap; gap:6px; margin-top:7px}
+.ph{position:relative; width:76px; height:76px; border-radius:6px; overflow:hidden; border:1px solid var(--bord)}
+.ph img{width:100%; height:100%; object-fit:cover}
+.ph button{position:absolute; top:1px; right:1px; background:rgba(0,0,0,.6); color:#fff; border:none; border-radius:4px; padding:1px 6px; font-size:12px}
+
+.badge{display:inline-block; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:700; color:#fff}
+.b-simple{background:var(--ok)} .b-vig{background:var(--warn)} .b-cplx{background:#B4451E} .b-bloq{background:var(--danger)}
+
+#toast{
+  position:fixed; bottom:18px; left:50%; transform:translateX(-50%) translateY(80px);
+  background:#22262b; color:#fff; padding:10px 18px; border-radius:22px; font-size:14px;
+  z-index:2000; transition:transform .25s ease; max-width:90%;
+}
+#toast.show{transform:translateX(-50%) translateY(0)}
+
+.leaflet-popup-content{margin:9px 11px; font-family:inherit}
+.pop b{font-size:14px}
+.pop .l{font-size:12px; color:var(--gris)}
+
+@media(max-width:860px){
+  /* le panneau devient un tiroir : la carte occupe tout l'écran */
+  #panel{
+    position:fixed; top:0; left:0; height:100%; width:86%; max-width:330px; z-index:1150;
+    transform:translateX(-102%); transition:transform .22s ease; box-shadow:3px 0 16px rgba(0,0,0,.18);
+    padding-bottom:60px;
   }
-  *{box-sizing:border-box; margin:0; padding:0;}
-  body{font-family:Calibri, 'Avenir', 'Segoe UI', Arial, sans-serif; background:var(--fond); color:var(--texte);}
+  #panel.open{transform:none}
+  #mapwrap{flex:1 1 auto; width:100%; height:100%}
+  #btnPanel{display:block !important; padding:8px 12px}
+  header{padding:7px 10px}
+  header h1{font-size:14.5px; line-height:1.2}
+  .eyebrow{font-size:9px}
+  #pillSync{display:none}
 
-  /* ---------- En-tête ---------- */
-  header{background:#fff; border-bottom:4px solid var(--rouge); padding:10px 18px; display:flex; align-items:center; gap:16px; flex-wrap:wrap;}
-  header h1{font-size:1.15rem; font-weight:700;}
-  header .sous-titre{font-size:.82rem; color:#666;}
-  .maj{margin-left:auto; font-size:.78rem; color:#666;}
-
-  /* ---------- Onglets ---------- */
-  nav{display:flex; gap:0; background:#fff; border-bottom:1px solid #ddd; padding:0 18px;}
-  nav button{border:none; background:none; padding:10px 20px; font-size:.95rem; font-family:inherit; cursor:pointer; border-bottom:3px solid transparent; color:#555;}
-  nav button.actif{border-bottom-color:var(--rouge); color:var(--rouge); font-weight:700;}
-
-  /* ---------- Filtres ---------- */
-  .filtres{display:flex; gap:10px; align-items:center; padding:8px 18px; background:#fff; border-bottom:1px solid #e5e5e5; flex-wrap:wrap; font-size:.85rem;}
-  .filtres select{padding:4px 8px; border:1px solid #ccc; border-radius:4px; font-family:inherit; font-size:.85rem; background:#fff;}
-  .chip{padding:4px 10px; border:1px solid #ccc; border-radius:14px; cursor:pointer; user-select:none; background:#fff;}
-  .chip.actif{background:var(--vert); border-color:var(--vert); color:#222; font-weight:600;}
-  .filtres .reinit{margin-left:auto; background:none; border:none; color:var(--rouge); cursor:pointer; font-size:.82rem; text-decoration:underline; font-family:inherit;}
-
-  /* ---------- Carte ---------- */
-  #vue-carte{position:relative;}
-  #carte{height:calc(100vh - 150px); min-height:420px;}
-  .basemap-switch{position:absolute; top:10px; right:10px; z-index:1000; background:#fff; border-radius:4px; box-shadow:0 1px 4px rgba(0,0,0,.3); overflow:hidden; display:flex;}
-  .basemap-switch button{border:none; background:#fff; padding:6px 12px; cursor:pointer; font-family:inherit; font-size:.82rem;}
-  .basemap-switch button.actif{background:var(--rouge); color:#fff;}
-  .legende{position:absolute; bottom:20px; left:10px; z-index:1000; background:rgba(255,255,255,.95); border-radius:4px; box-shadow:0 1px 4px rgba(0,0,0,.3); padding:10px 12px; font-size:.78rem; line-height:1.7;}
-  .legende b{display:block; margin-bottom:2px;}
-  .legende .lig{display:flex; align-items:center; gap:7px;}
-  .pastille{width:12px; height:12px; border-radius:50%; display:inline-block; flex:none;}
-
-  /* ---------- Popup fiche site ---------- */
-  .leaflet-popup-content{margin:12px 14px; font-family:Calibri, Arial, sans-serif;}
-  .fiche h3{font-size:.98rem; margin-bottom:2px; color:var(--rouge);}
-  .fiche .type{font-size:.8rem; color:#555; margin-bottom:8px;}
-  .fiche ul{list-style:none; font-size:.8rem;}
-  .fiche li{padding:1.5px 0; display:flex; gap:6px; align-items:baseline;}
-  .fiche .ico{width:16px; flex:none; text-align:center;}
-  .fiche .dt{color:#777; font-size:.74rem; margin-left:auto; padding-left:8px;}
-  .fiche a{color:var(--rouge); font-size:.8rem;}
-  .badge-prio{display:inline-block; font-size:.7rem; background:#eee; border-radius:3px; padding:1px 6px; margin-left:6px; vertical-align:middle;}
-
-  /* ---------- Volet Suivi ---------- */
-  #vue-suivi{padding:16px 18px; display:none; max-width:1200px; margin:0 auto;}
-  .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:20px;}
-  .kpi{background:#fff; border:1px solid #e2e2e2; border-left:4px solid var(--vert); border-radius:4px; padding:10px 14px;}
-  .kpi .val{font-size:1.5rem; font-weight:700;}
-  .kpi .lab{font-size:.76rem; color:#666;}
-  .kpi.alerte{border-left-color:var(--orange);}
-  .kpi.ok{border-left-color:var(--vert-ok);}
-
-  h2{font-size:1rem; margin:18px 0 8px; color:var(--rouge);}
-  .communes-bars{background:#fff; border:1px solid #e2e2e2; border-radius:4px; padding:12px 14px;}
-  .cbar{display:grid; grid-template-columns:190px 1fr 90px; gap:10px; align-items:center; font-size:.83rem; padding:3px 0;}
-  .barre{background:#eee; border-radius:3px; height:12px; overflow:hidden;}
-  .barre>div{height:100%; background:var(--rouge);}
-  .cbar .pct{color:#666; font-size:.78rem; text-align:right;}
-
-  table{width:100%; border-collapse:collapse; background:#fff; font-size:.82rem; border:1px solid #e2e2e2;}
-  th{background:#f0f0ec; text-align:left; padding:7px 8px; font-size:.76rem; position:sticky; top:0;}
-  td{padding:6px 8px; border-top:1px solid #eee;}
-  tr:hover td{background:#fbf7f7;}
-  .mini-steps{display:flex; gap:2px;}
-  .mini-steps span{width:10px; height:10px; border-radius:2px; background:#e0e0e0; display:inline-block;}
-  .mini-steps span.d{background:var(--vert-ok);}
-  .mini-steps span.a{background:var(--orange);}
-  .statut-pill{display:inline-block; padding:1px 8px; border-radius:10px; font-size:.72rem; color:#fff;}
-
-  /* ---------- Message de chargement / erreur ---------- */
-  #message{padding:40px 18px; text-align:center; display:none;}
-  #message .boite{display:inline-block; background:#fff; border:1px solid #ddd; border-radius:6px; padding:24px 30px; max-width:520px; text-align:left; font-size:.9rem; line-height:1.5;}
-  #message input[type=file]{margin-top:12px;}
-
-  @media(max-width:700px){
-    .cbar{grid-template-columns:110px 1fr 60px;}
-    #carte{height:calc(100vh - 210px);}
-  }
-  @media print{
-    header, nav, .filtres, .basemap-switch{display:none;}
-  }
+  /* fiche plein écran */
+  #fiche{width:100%; border-left:none}
+  #fiche header{padding:11px 46px 11px 14px}
+  #ficheBody{padding:12px 12px 24px; -webkit-overflow-scrolling:touch}
+  #fiche .close{font-size:30px; top:6px; right:8px; padding:4px 10px}
+  #ficheFoot{padding:9px 12px calc(9px + env(safe-area-inset-bottom))}
+  #ficheFoot button{min-height:50px; font-size:16px}
+  .ph{width:70px; height:70px}
+}
 </style>
 </head>
 <body>
 
 <header>
   <div>
-    <h1>Suivi des chantiers — dalles PAV / PDR / cabanes</h1>
-    <div class="sous-titre">Normandie Cabourg Pays d'Auge — Direction de la Maîtrise des Déchets</div>
+    <div class="eyebrow">NCPA — Direction de la maîtrise des déchets</div>
+    <h1>Reconnaissance terrain — Dalles béton</h1>
   </div>
-  <div class="maj" id="maj"></div>
+  <div class="hdr-right">
+    <span class="pill" id="pillSync">Sync…</span>
+    <button id="btnPanel" style="display:none">☰</button>
+  </div>
 </header>
 
-<nav>
-  <button id="btn-carte" class="actif" onclick="montrerVue('carte')">Carte</button>
-  <button id="btn-suivi" onclick="montrerVue('suivi')">Suivi</button>
-</nav>
+<div id="body">
 
-<div class="filtres" id="filtres" style="display:none;">
-  <select id="f-commune"><option value="">Toutes les communes</option></select>
-  <span class="chip actif" data-type="Dalle PDR">PDR</span>
-  <span class="chip actif" data-type="Dalle borne à verre">Bornes à verre</span>
-  <span class="chip actif" data-type="Dalle cabane à cartons">Cabanes à cartons</span>
-  <select id="f-prio">
-    <option value="">Toutes priorités</option>
-    <option value="1">Priorité 1</option><option value="2">Priorité 2</option>
-    <option value="3">Priorité 3</option><option value="4">Priorité 4</option>
-  </select>
-  <select id="f-statut">
-    <option value="">Tous les avancements</option>
-    <option value="alancer">À lancer</option>
-    <option value="encours">En cours</option>
-    <option value="alerte">Alerte / blocage</option>
-    <option value="termine">Terminé</option>
-  </select>
-  <button class="reinit" onclick="reinitFiltres()">Réinitialiser</button>
-</div>
+  <!-- ================= PANNEAU ================= -->
+  <aside id="panel">
 
-<div id="message">
-  <div class="boite" id="message-contenu"></div>
-</div>
+    <div class="sec">
+      <h3>Source des chantiers</h3>
+      <input type="text" id="srcUrl" placeholder="./chantiers.xlsx">
+      <div class="row2" style="margin-top:6px">
+        <button id="btnLoad">Charger</button>
+        <button id="btnLocal">Fichier local</button>
+      </div>
+      <input type="file" id="fileLocal" accept=".xlsx,.xls,.csv" style="display:none">
+      <p class="muted" id="srcInfo">—</p>
+    </div>
 
-<div id="vue-carte">
-  <div id="carte"></div>
-  <div class="basemap-switch">
-    <button id="bm-plan" class="actif" onclick="basculerFond('plan')">Plan</button>
-    <button id="bm-ortho" onclick="basculerFond('ortho')">Photo aérienne</button>
+    <div class="sec" id="mapSec">
+      <h3>Correspondance des colonnes</h3>
+      <p class="muted">Détecté automatiquement. Corrige si besoin.</p>
+      <div id="mapFields"></div>
+    </div>
+
+    <div class="sec">
+      <h3>Filtres</h3>
+      <label class="f">Commune</label>
+      <select id="fCommune"><option value="">Toutes</option></select>
+      <label class="f">Type d'équipement</label>
+      <div id="fTypes"></div>
+      <label class="f">État du relevé</label>
+      <select id="fEtat">
+        <option value="">Tous</option>
+        <option value="todo">À relever</option>
+        <option value="done">Relevé fait</option>
+      </select>
+    </div>
+
+    <div class="sec">
+      <h3>Synthèse</h3>
+      <div class="stats">
+        <div class="stat"><b id="sTot">0</b><span>Chantiers affichés</span></div>
+        <div class="stat"><b id="sDone">0</b><span>Relevés faits</span></div>
+        <div class="stat"><b id="sBloq">0</b><span>Bloquants / complexes</span></div>
+        <div class="stat"><b id="sTodo">0</b><span>Restent à faire</span></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h3>Légende</h3>
+      <div class="chk"><span class="dot" style="background:var(--pdr)"></span> PDR / dalle claustra</div>
+      <div class="chk"><span class="dot" style="background:var(--verre)"></span> Borne à verre</div>
+      <div class="chk"><span class="dot" style="background:var(--carton)"></span> Cabane à cartons</div>
+      <div class="chk"><span class="dot" style="background:var(--autre)"></span> Autre / non typé</div>
+      <div class="chk"><span class="dot" style="background:#fff;border:3px solid var(--ok)"></span> Relevé terrain fait</div>
+      <p class="muted">Contour épais = agrandissement d'une dalle existante.</p>
+    </div>
+
+    <div class="sec">
+      <h3>Exports</h3>
+      <button class="wide" id="expCsv">Relevés → CSV</button>
+      <button class="wide" id="expGeo">Relevés → GeoJSON (QGIS)</button>
+      <p class="muted">Les relevés sont aussi envoyés automatiquement dans le Google Sheet.</p>
+    </div>
+
+  </aside>
+
+  <div id="mapwrap">
+    <div id="map"></div>
+    <button id="btnLoc" title="Me localiser">◎</button>
   </div>
-  <div class="legende">
-    <b>Type de chantier</b>
-    <div class="lig"><svg width="14" height="14"><rect x="2" y="2" width="10" height="10" fill="#777" stroke="#fff"/></svg> PDR (+ claustra)</div>
-    <div class="lig"><svg width="14" height="14"><circle cx="7" cy="7" r="5" fill="#777" stroke="#fff"/></svg> Borne à verre</div>
-    <div class="lig"><svg width="14" height="14"><polygon points="7,1 13,12 1,12" fill="#777" stroke="#fff"/></svg> Cabane à cartons</div>
-    <b style="margin-top:6px;">Avancement</b>
-    <div class="lig"><span class="pastille" style="background:#8a8a8a"></span> À lancer</div>
-    <div class="lig"><span class="pastille" style="background:#B91E27"></span> En cours</div>
-    <div class="lig"><span class="pastille" style="background:#E67E22"></span> Alerte réseau / blocage</div>
-    <div class="lig"><span class="pastille" style="background:#2E7D32"></span> Terminé</div>
+</div>
+<div id="overlay"></div>
+
+<!-- ================= FICHE TERRAIN ================= -->
+<div id="fiche">
+  <header>
+    <button class="close" id="ficheClose">×</button>
+    <div class="eyebrow" id="ficheType">—</div>
+    <h1 id="ficheTitre" style="font-size:16px">—</h1>
+    <div class="muted" id="ficheSub">—</div>
+  </header>
+  <div id="ficheBody"></div>
+  <div id="ficheFoot">
+    <div class="row2">
+      <button id="btnJson">Sauver en local</button>
+      <button class="primary" id="btnSend">Envoyer</button>
+    </div>
   </div>
 </div>
 
-<div id="vue-suivi">
-  <div class="kpis" id="kpis"></div>
-  <h2>Avancement par commune</h2>
-  <div class="communes-bars" id="communes-bars"></div>
-  <h2>Détail des sites <span id="compteur-table" style="color:#666;font-size:.8rem;font-weight:400;"></span></h2>
-  <div style="overflow-x:auto;">
-    <table id="table-sites">
-      <thead><tr>
-        <th>Commune</th><th>Type</th><th>Prio.</th><th>Étapes (9)</th><th>Étape en cours</th><th>Avancement</th>
-      </tr></thead>
-      <tbody></tbody>
-    </table>
-  </div>
-</div>
+<div id="toast"></div>
 
 <script>
-/* =========================================================
-   CONFIGURATION — à adapter si le nom du fichier change
-   Le fichier Excel doit être commité dans le même dépôt
-   GitHub que cette page (même dossier).
-   ========================================================= */
+/* =======================================================================
+   CONFIGURATION — les 3 seules lignes à modifier après déploiement
+   ======================================================================= */
 const CONFIG = {
-  fichierExcel: "DT-DICT-DALLES_BETON_avec_RETROPLANNING.xlsx",
-  onglet: "CHANTIERS"
+  // URL de ton application web Apps Script (voir README, étape 3)
+  APPS_SCRIPT_URL : "COLLE_ICI_TON_URL_APPS_SCRIPT",
+  // Chemin du fichier Excel des chantiers, dans le même dépôt GitHub
+  SOURCE_XLSX     : "./chantiers.xlsx",
+  // Nom de l'onglet à lire (laisser "" pour prendre le premier onglet)
+  SHEET_NAME      : "",
+  // Vue initiale de la carte (NCPA)
+  CENTRE          : [49.28, -0.10],
+  ZOOM            : 11
 };
 
-/* Les 9 étapes du circuit, dans l'ordre des colonnes H à P */
-const ETAPES = [
-  { nom: "Convention retournée signée",      col: 7,  mode: "dateOuiNon" },
-  { nom: "Implantation validée par commune", col: 8,  mode: "liste", fait: ["Validé"] },
-  { nom: "DT-DICT réalisée",                 col: 9,  mode: "liste", fait: ["Déposée","Récépissés reçus","Calé"], alerte: ["Réseau détecté"] },
-  { nom: "Retour DT-DICT",                   col: 10, mode: "liste", fait: ["RAS"], alerte: ["Réseau dans l'emprise"] },
-  { nom: "Validation NCPA / Commune",        col: 11, mode: "liste", fait: ["Obtenu"], encours: ["Demandé"] },
-  { nom: "Préparation / signalisation",      col: 12, mode: "liste", fait: ["Fait"], encours: ["En cours"] },
-  { nom: "Début travaux",                    col: 13, mode: "dateOuiNon" },
-  { nom: "Fin travaux",                      col: 14, mode: "dateOuiNon" },
-  { nom: "Mise en place équipements",        col: 15, mode: "dateOuiNon" }
+/* =======================================================================
+   SCHÉMA DE LA FICHE TERRAIN
+   Pour ajouter une question : copier une ligne et l'adapter.
+   types : 'select' | 'num' | 'text' | 'textarea' | 'bool'
+   ======================================================================= */
+const FICHE = [
+ {s:"Accès et stationnement de la toupie", items:[
+   {k:"toupie_distance", l:"Distance toupie → dalle (m)", t:"num", help:"Au-delà de ~4 m la goulotte ne suffit plus."},
+   {k:"toupie_moyen", l:"Moyen d'acheminement du béton", t:"select", o:["Goulotte directe","Goulotte + rallonges","Brouettage","Tapis","Pompe à béton","À déterminer"]},
+   {k:"toupie_stationnement", l:"Où stationne la toupie", t:"text", help:"Ex : sur la chaussée devant le n°12, ou sur le parking."},
+   {k:"voie_largeur", l:"Largeur d'accès utile (m)", t:"num"},
+   {k:"hauteur_libre", l:"Contrainte de hauteur au-dessus de l'accès", t:"select", o:["Aucune","Branches d'arbres","Lignes aériennes","Porche / passage couvert","Autre"]},
+   {k:"portance", l:"Doute sur la portance ou le tonnage admis", t:"bool", help:"Pont, trottoir, place engazonnée, voie limitée en tonnage."},
+   {k:"lavage", l:"Lavage de goulotte possible sur place", t:"bool"}
+ ]},
+ {s:"Terrain et emprise", items:[
+   {k:"pente", l:"Pente du terrain", t:"select", o:["Nulle ou négligeable","Faible (< 3 %)","Marquée (3 à 8 %)","Forte (> 8 %)"]},
+   {k:"pente_sens", l:"Sens d'écoulement de l'eau", t:"select", o:["Vers la chaussée","À l'opposé de la chaussée","Vers une propriété riveraine","Vers un avaloir / grille","Indéterminé"]},
+   {k:"sol", l:"Nature du sol existant", t:"select", o:["Enrobé","Terre / herbe","Grave ou stabilisé","Pavés / dallage","Béton existant","Mixte"]},
+   {k:"decaissement", l:"Décaissement nécessaire", t:"bool"},
+   {k:"deblais_m3", l:"Volume de déblais estimé (m³)", t:"num"},
+   {k:"deblais_exutoire", l:"Destination des déblais", t:"text"},
+   {k:"racines", l:"Arbres ou racines dans l'emprise", t:"bool"},
+   {k:"niveau", l:"Raccordement de niveau à traiter", t:"select", o:["Aucun","Bordure / trottoir","Caniveau","Bordure à créer","Autre"]}
+ ]},
+ {s:"Circulation et riverains", items:[
+   {k:"voie_statut", l:"Statut de la voie", t:"select", o:["Voie communale","Route départementale","Parking / domaine privé communal","Autre"], help:"Départementale = permission de voirie à demander au CD14."},
+   {k:"sens_unique", l:"Voie en sens unique", t:"bool"},
+   {k:"places_neutraliser", l:"Places de stationnement à neutraliser", t:"num"},
+   {k:"arrete", l:"Arrêté municipal nécessaire", t:"bool", help:"À anticiper : délai côté commune."},
+   {k:"circulation_mesure", l:"Mesure de circulation à prévoir", t:"select", o:["Aucune","Signalisation simple","Alternat manuel","Alternat par feux","Déviation piétonne PMR","Fermeture de voie"]},
+   {k:"riverains", l:"Riverains ou commerces impactés", t:"text"},
+   {k:"fenetre", l:"Fenêtre d'intervention conseillée", t:"select", o:["Indifférent","Hors saison touristique","Hors jour de marché","Hors période scolaire","Précisé en commentaire"]}
+ ]},
+ {s:"Synthèse", items:[
+   {k:"difficulte", l:"Niveau de difficulté du chantier", t:"select", o:["Simple","Vigilance","Complexe","Bloquant"]},
+   {k:"commentaire", l:"Observations libres", t:"textarea"},
+   {k:"releveur", l:"Relevé effectué par", t:"text"}
+ ]}
 ];
 
-const COULEURS = { alancer:"#8a8a8a", encours:"#B91E27", alerte:"#E67E22", termine:"#2E7D32" };
-const LIBELLES = { alancer:"À lancer", encours:"En cours", alerte:"Alerte", termine:"Terminé" };
+/* =======================================================================
+   ÉTAT
+   ======================================================================= */
+let rows = [];          // lignes brutes du fichier
+let cols = [];          // en-têtes disponibles
+let mapping = {};       // champ logique -> nom de colonne
+let markers = {};       // id -> L.CircleMarker
+let releves = {};       // id -> objet relevé
+let current = null;     // chantier ouvert dans la fiche
+let photos = [];        // photos de la fiche en cours (base64)
+let layer;              // layerGroup des marqueurs
 
-let sites = [];          // tous les sites analysés
-let carte, calquePoints; // objets Leaflet
-let fonds = {};          // fonds de carte
+const FIELD_DEFS = [
+  {k:"id",      l:"Identifiant",     re:/^(id|identifiant|code.?site|ref|r[ée]f)/i, req:true},
+  {k:"lat",     l:"Latitude",        re:/^(lat|y_?wgs|latitude)/i, req:true},
+  {k:"lon",     l:"Longitude",       re:/^(lon|lng|long|x_?wgs)/i, req:true},
+  {k:"commune", l:"Commune",         re:/(commune|ville)/i},
+  {k:"adresse", l:"Adresse / lieu",  re:/(adresse|lieu|localisation|site|emplacement)/i},
+  {k:"type",    l:"Type d'équipement", re:/(type|[ée]quipement|nature.?point|flux)/i},
+  {k:"travaux", l:"Création / agrandissement", re:/(cr[ée]ation|agrandissement|nature.?travaux|travaux)/i}
+];
 
-/* ---------- Lecture du fichier Excel ---------- */
-function demarrer(){
-  fetch(CONFIG.fichierExcel)
-    .then(r => { if(!r.ok) throw new Error("HTTP " + r.status); return r.arrayBuffer(); })
-    .then(buf => chargerClasseur(buf))
-    .catch(err => afficherErreur(err));
+/* =======================================================================
+   CARTE
+   ======================================================================= */
+const map = L.map('map', {preferCanvas:true}).setView(CONFIG.CENTRE, CONFIG.ZOOM);
+
+const positron = L.maplibreGL({
+  style:'https://tiles.openfreemap.org/styles/positron',
+  attribution:'© <a href="https://openfreemap.org">OpenFreeMap</a> — données © contributeurs <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+}).addTo(map);
+
+const ortho = L.tileLayer(
+  'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&FORMAT=image%2Fjpeg&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
+  {maxNativeZoom:19, maxZoom:21, attribution:'© IGN / Géoplateforme'}
+);
+
+L.control.layers({'Plan (OpenFreeMap)':positron, 'Satellite (IGN)':ortho}, null, {position:'topright'}).addTo(map);
+L.control.scale({imperial:false}).addTo(map);
+layer = L.layerGroup().addTo(map);
+setTimeout(()=>map.invalidateSize(), 250);
+
+/* =======================================================================
+   CHARGEMENT DES DONNÉES
+   ======================================================================= */
+function toast(msg, ms){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'), ms||3000);
 }
 
-function chargerClasseur(buf){
-  // cellDates:true => les dates Excel deviennent des objets Date JavaScript
-  const wb = XLSX.read(buf, { cellDates:true });
-  const ws = wb.Sheets[CONFIG.onglet];
-  if(!ws){ afficherErreur(new Error("Onglet « " + CONFIG.onglet + " » introuvable")); return; }
-  // header:1 => tableau de tableaux ; range:1 => on saute la ligne 1 (vide)
-  const lignes = XLSX.utils.sheet_to_json(ws, { header:1, range:1, defval:null });
-  sites = [];
-  for(let i = 1; i < lignes.length; i++){   // i=0 : ligne d'en-têtes
-    const l = lignes[i];
-    if(!l || !l[1]) continue;               // pas de nom de commune => ligne vide
-    const lat = parseFloat(String(l[3]||"").trim());
-    const lng = parseFloat(String(l[4]||"").trim());
-    const etapes = ETAPES.map(e => etatEtape(e, l[e.col]));
-    const faites = etapes.filter(e => e.etat === "fait").length;
-    const alerte  = etapes.some(e => e.alerte || e.etat === "bloque");
-    const enCours = etapes.some(e => e.etat === "encours");
-    let statut = "alancer";
-    if(faites === 9) statut = "termine";
-    else if(alerte) statut = "alerte";
-    else if(faites > 0 || enCours) statut = "encours";
-    const prochaine = etapes.find(e => e.etat !== "fait");
-    sites.push({
-      insee: l[0], commune: String(l[1]).trim(), type: String(l[2]||"").trim(),
-      lat: isNaN(lat) ? null : lat, lng: isNaN(lng) ? null : lng,
-      prio: l[6], etapes, faites, statut,
-      etapeEnCours: prochaine ? prochaine.nom : "Terminé"
+async function loadFromUrl(url){
+  document.getElementById('srcInfo').textContent = 'Chargement…';
+  try{
+    const r = await fetch(url + (url.includes('?')?'&':'?') + 'v=' + Date.now());
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    parseWorkbook(new Uint8Array(await r.arrayBuffer()));
+  }catch(e){
+    document.getElementById('srcInfo').textContent = 'Échec : ' + e.message;
+    toast('Impossible de charger le fichier : ' + e.message, 5000);
+  }
+}
+
+function parseWorkbook(data){
+  const wb = XLSX.read(data, {type:'array', cellDates:true});
+  const name = CONFIG.SHEET_NAME && wb.SheetNames.includes(CONFIG.SHEET_NAME)
+    ? CONFIG.SHEET_NAME : wb.SheetNames[0];
+  rows = XLSX.utils.sheet_to_json(wb.Sheets[name], {defval:''});
+  if(!rows.length){ toast('Onglet vide : ' + name, 4000); return; }
+  cols = Object.keys(rows[0]);
+  autoMap();
+  buildMappingUI();
+  refresh();
+  document.getElementById('srcInfo').textContent =
+    rows.length + ' lignes — onglet « ' + name + ' »';
+}
+
+function autoMap(){
+  mapping = {};
+  FIELD_DEFS.forEach(f=>{
+    const hit = cols.find(c => f.re.test(String(c).trim()));
+    mapping[f.k] = hit || '';
+  });
+}
+
+function buildMappingUI(){
+  const box = document.getElementById('mapFields');
+  box.innerHTML = '';
+  FIELD_DEFS.forEach(f=>{
+    const lab = document.createElement('label');
+    lab.className = 'f'; lab.textContent = f.l + (f.req?' *':'');
+    const sel = document.createElement('select');
+    sel.innerHTML = '<option value="">—</option>' +
+      cols.map(c=>`<option ${c===mapping[f.k]?'selected':''}>${c}</option>`).join('');
+    sel.onchange = ()=>{ mapping[f.k] = sel.value; refresh(); };
+    box.append(lab, sel);
+  });
+}
+
+/* =======================================================================
+   AFFICHAGE
+   ======================================================================= */
+function val(row, key){ return mapping[key] ? String(row[mapping[key]] ?? '').trim() : ''; }
+
+function typeOf(row){
+  const t = val(row,'type').toLowerCase();
+  if(/verre|borne|colonne/.test(t)) return {k:'verre', l:'Borne à verre', c:getComputedStyle(document.documentElement).getPropertyValue('--verre')};
+  if(/carton|cabane/.test(t))       return {k:'carton', l:'Cabane à cartons', c:getComputedStyle(document.documentElement).getPropertyValue('--carton')};
+  if(/pdr|claustra|regroup|omr|bac/.test(t)) return {k:'pdr', l:'PDR / dalle claustra', c:getComputedStyle(document.documentElement).getPropertyValue('--pdr')};
+  return {k:'autre', l: val(row,'type') || 'Non typé', c:getComputedStyle(document.documentElement).getPropertyValue('--autre')};
+}
+
+function isAgrandissement(row){ return /agrand|extens/i.test(val(row,'travaux')); }
+
+function refresh(){
+  layer.clearLayers(); markers = {};
+  const fc = document.getElementById('fCommune').value;
+  const fe = document.getElementById('fEtat').value;
+  const actifs = [...document.querySelectorAll('#fTypes input:checked')].map(i=>i.value);
+
+  let n=0, done=0, bloq=0;
+  const bounds = [];
+
+  rows.forEach(row=>{
+    const lat = parseFloat(String(val(row,'lat')).replace(',','.'));
+    const lon = parseFloat(String(val(row,'lon')).replace(',','.'));
+    if(isNaN(lat) || isNaN(lon)) return;
+
+    const id = val(row,'id') || (lat.toFixed(5)+'_'+lon.toFixed(5));
+    const ty = typeOf(row);
+    const rv = releves[id];
+
+    if(fc && val(row,'commune') !== fc) return;
+    if(actifs.length && !actifs.includes(ty.k)) return;
+    if(fe === 'done' && !rv) return;
+    if(fe === 'todo' && rv) return;
+
+    n++;
+    if(rv) done++;
+    if(rv && /Complexe|Bloquant/.test(rv.difficulte||'')) bloq++;
+
+    const mobile = window.innerWidth <= 860;
+    const m = L.circleMarker([lat,lon], {
+      radius: mobile ? 11 : 8,          // cible tactile plus large sur téléphone
+      fillColor: ty.c.trim(),
+      fillOpacity: 0.92,
+      color: rv ? '#2E7D32' : '#ffffff',
+      weight: rv ? 3.5 : (isAgrandissement(row) ? 3 : 1.5)
     });
+
+    m._data = {id, row, lat, lon, ty};
+    // sur mobile on ouvre la fiche directement, le popup ferait un clic de trop
+    if(!mobile) m.bindPopup(popupHtml(m._data));
+    m.on('click', ()=>{ setTimeout(()=>openFiche(m._data), mobile ? 0 : 10); });
+    m.addTo(layer);
+    markers[id] = m;
+    bounds.push([lat,lon]);
+  });
+
+  document.getElementById('sTot').textContent  = n;
+  document.getElementById('sDone').textContent = done;
+  document.getElementById('sBloq').textContent = bloq;
+  document.getElementById('sTodo').textContent = n - done;
+
+  if(bounds.length && !refresh._zoomed){ map.fitBounds(bounds, {padding:[30,30]}); refresh._zoomed = true; }
+  fillCommunes();
+}
+
+function popupHtml(d){
+  const rv = releves[d.id];
+  const b = rv ? `<span class="badge ${badgeCls(rv.difficulte)}">${rv.difficulte||'Relevé fait'}</span>` : '';
+  return `<div class="pop">
+    <b>${val(d.row,'adresse') || d.id}</b> ${b}<br>
+    <span class="l">${val(d.row,'commune')} — ${d.ty.l}${isAgrandissement(d.row)?' (agrandissement)':''}</span><br>
+    <button style="margin-top:6px" onclick="void 0">Ouvrir la fiche</button>
+  </div>`;
+}
+function badgeCls(d){
+  return d==='Simple'?'b-simple':d==='Vigilance'?'b-vig':d==='Complexe'?'b-cplx':d==='Bloquant'?'b-bloq':'b-simple';
+}
+
+function fillCommunes(){
+  const sel = document.getElementById('fCommune');
+  if(sel._filled) return;
+  const set = [...new Set(rows.map(r=>val(r,'commune')).filter(Boolean))].sort();
+  if(!set.length) return;
+  sel.innerHTML = '<option value="">Toutes</option>' + set.map(c=>`<option>${c}</option>`).join('');
+  sel._filled = true;
+}
+
+// cases à cocher de type
+['pdr','verre','carton','autre'].forEach(k=>{
+  const lbl = {pdr:'PDR / claustra', verre:'Borne à verre', carton:'Cabane à cartons', autre:'Autre'}[k];
+  const d = document.createElement('label'); d.className='chk';
+  d.innerHTML = `<input type="checkbox" value="${k}" checked> ${lbl}`;
+  d.querySelector('input').onchange = refresh;
+  document.getElementById('fTypes').append(d);
+});
+
+/* =======================================================================
+   FICHE TERRAIN
+   ======================================================================= */
+function openFiche(d){
+  current = d;
+  photos = [];
+  const saved = releves[d.id] || {};
+  document.getElementById('ficheType').textContent = d.ty.l + (isAgrandissement(d.row)?' — agrandissement':' — création');
+  document.getElementById('ficheTitre').textContent = val(d.row,'adresse') || d.id;
+  document.getElementById('ficheSub').textContent =
+    `${val(d.row,'commune')} · ${d.id} · ${d.lat.toFixed(6)}, ${d.lon.toFixed(6)}`;
+
+  const body = document.getElementById('ficheBody');
+  body.innerHTML = '';
+
+  // position GPS relevée
+  const fsGps = document.createElement('fieldset');
+  fsGps.innerHTML = `<legend>Position</legend>
+    <button id="btnGps" class="wide">Relever ma position GPS actuelle</button>
+    <p class="help" id="gpsOut">Utile si le point théorique est décalé sur le terrain.</p>`;
+  body.append(fsGps);
+
+  FICHE.forEach((sec, si)=>{
+    const fs = document.createElement('div');
+    fs.className = 'acc' + (si===0 ? ' open' : '');
+    fs.innerHTML = `<button class="acc-h"><span class="chev">▶</span>
+      <span>${sec.s}</span><span class="cnt">0/${sec.items.length}</span></button>`;
+    const cont = document.createElement('div');
+    cont.className = 'acc-c';
+    fs.append(cont);
+    fs.querySelector('.acc-h').onclick = ()=> fs.classList.toggle('open');
+
+    sec.items.forEach(it=>{
+      const wrap = document.createElement('div');
+      const v = saved[it.k] ?? '';
+      let ctrl;
+      if(it.t==='select'){
+        ctrl = `<select data-k="${it.k}"><option value="">—</option>` +
+               it.o.map(o=>`<option ${o===v?'selected':''}>${o}</option>`).join('') + `</select>`;
+      } else if(it.t==='bool'){
+        ctrl = `<select data-k="${it.k}"><option value="">—</option>
+                <option ${v==='Oui'?'selected':''}>Oui</option>
+                <option ${v==='Non'?'selected':''}>Non</option></select>`;
+      } else if(it.t==='textarea'){
+        ctrl = `<textarea data-k="${it.k}">${v}</textarea>`;
+      } else if(it.t==='num'){
+        ctrl = `<input type="number" step="any" inputmode="decimal" data-k="${it.k}" value="${v}">`;
+      } else {
+        ctrl = `<input type="text" data-k="${it.k}" value="${v}">`;
+      }
+      wrap.innerHTML = `<label class="f">${it.l}</label>${ctrl}` + (it.help?`<p class="help">${it.help}</p>`:'');
+      cont.append(wrap);
+    });
+    body.append(fs);
+  });
+
+  // compteur de champs renseignés par section
+  body.querySelectorAll('[data-k]').forEach(el=> el.addEventListener('change', updateCounts));
+  updateCounts();
+
+  // photos
+  const fsP = document.createElement('div');
+  fsP.className = 'acc open';
+  fsP.innerHTML = `<button class="acc-h"><span class="chev">▶</span><span>Photos</span>
+      <span class="cnt" id="phCnt">0</span></button><div class="acc-c">
+    <button class="wide" id="btnPhoto">Ajouter des photos</button>
+    <input type="file" id="inPhoto" accept="image/*" capture="environment" multiple style="display:none">
+    <p class="help">Vue d'ensemble, accès toupie, pente, réseaux visibles. Max 6, compressées automatiquement.</p>
+    <div class="photos" id="phList"></div></div>`;
+  body.append(fsP);
+  fsP.querySelector('.acc-h').onclick = e=>{
+    if(e.target.closest('#btnPhoto')) return;
+    fsP.classList.toggle('open');
+  };
+
+  document.getElementById('btnPhoto').onclick = ()=>document.getElementById('inPhoto').click();
+  document.getElementById('inPhoto').onchange = e=>addPhotos(e.target.files);
+  document.getElementById('btnGps').onclick = takeGps;
+
+  document.getElementById('fiche').classList.add('open');
+  body.scrollTop = 0;
+}
+
+function takeGps(){
+  const out = document.getElementById('gpsOut');
+  if(!navigator.geolocation){ out.textContent='Géolocalisation indisponible.'; return; }
+  out.textContent = 'Acquisition…';
+  navigator.geolocation.getCurrentPosition(p=>{
+    current.gps = {lat:p.coords.latitude, lon:p.coords.longitude, prec:Math.round(p.coords.accuracy)};
+    out.textContent = `Relevé : ${current.gps.lat.toFixed(6)}, ${current.gps.lon.toFixed(6)} (± ${current.gps.prec} m)`;
+  }, e=>{ out.textContent = 'Échec : ' + e.message; }, {enableHighAccuracy:true, timeout:15000});
+}
+
+function addPhotos(files){
+  [...files].forEach(f=>{
+    if(photos.length >= 6){ toast('6 photos maximum'); return; }
+    const img = new Image();
+    img.onload = ()=>{
+      const max = 1400;
+      const sc = Math.min(1, max/Math.max(img.width, img.height));
+      const cv = document.createElement('canvas');
+      cv.width = img.width*sc; cv.height = img.height*sc;
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      photos.push(cv.toDataURL('image/jpeg', 0.72));
+      drawPhotos();
+      URL.revokeObjectURL(img.src);
+    };
+    img.src = URL.createObjectURL(f);
+  });
+}
+
+function updateCounts(){
+  document.querySelectorAll('#ficheBody .acc').forEach(acc=>{
+    const cnt = acc.querySelector('.cnt');
+    const champs = acc.querySelectorAll('[data-k]');
+    if(!cnt || !champs.length) return;
+    const n = [...champs].filter(el=>el.value !== '').length;
+    cnt.textContent = n + '/' + champs.length;
+    cnt.classList.toggle('full', n === champs.length);
+  });
+}
+
+function drawPhotos(){
+  const box = document.getElementById('phList');
+  const c = document.getElementById('phCnt');
+  if(c){ c.textContent = photos.length; c.classList.toggle('full', photos.length > 0); }
+  box.innerHTML = '';
+  photos.forEach((p,i)=>{
+    const d = document.createElement('div'); d.className='ph';
+    d.innerHTML = `<img src="${p}"><button>×</button>`;
+    d.querySelector('button').onclick = ()=>{ photos.splice(i,1); drawPhotos(); };
+    box.append(d);
+  });
+}
+
+function collect(){
+  const o = {};
+  document.querySelectorAll('#ficheBody [data-k]').forEach(el=> o[el.dataset.k] = el.value);
+  o.id        = current.id;
+  o.commune   = val(current.row,'commune');
+  o.adresse   = val(current.row,'adresse');
+  o.type      = current.ty.l;
+  o.travaux   = val(current.row,'travaux');
+  o.lat_theo  = current.lat;
+  o.lon_theo  = current.lon;
+  o.lat_gps   = current.gps ? current.gps.lat : '';
+  o.lon_gps   = current.gps ? current.gps.lon : '';
+  o.horodatage = new Date().toISOString();
+  return o;
+}
+
+async function sendFiche(){
+  const data = collect();
+  const btn = document.getElementById('btnSend');
+  btn.disabled = true; btn.textContent = 'Envoi…';
+  try{
+    const r = await fetch(CONFIG.APPS_SCRIPT_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'}, // évite le préflight CORS
+      body: JSON.stringify({action:'save', releve:data, photos:photos})
+    });
+    const j = await r.json();
+    if(!j.ok) throw new Error(j.error || 'réponse invalide');
+    releves[data.id] = data;
+    toast('Relevé enregistré dans le Sheet');
+    closeFiche(); refresh();
+  }catch(e){
+    toast('Échec de l\'envoi : ' + e.message + ' — sauvegarde locale conseillée', 6000);
+  }finally{
+    btn.disabled = false; btn.textContent = 'Envoyer';
   }
-  document.getElementById("message").style.display = "none";
-  document.getElementById("filtres").style.display = "flex";
-  document.getElementById("maj").textContent = sites.length + " sites chargés";
-  initFiltres();
-  initCarte();
-  toutRafraichir();
 }
 
-/* État d'une étape à partir de la valeur de la cellule */
-function etatEtape(def, v){
-  const res = { nom: def.nom, etat: "afaire", date: null, alerte: false, brut: v };
-  if(v === null || v === undefined || v === "") return res;
+function closeFiche(){ document.getElementById('fiche').classList.remove('open'); current=null; photos=[]; }
 
-  if(def.mode === "dateOuiNon"){
-    const d = versDate(v);
-    if(d){ res.etat = "fait"; res.date = d; return res; }
-    const s = String(v).trim().toLowerCase();
-    if(s === "oui") res.etat = "fait";
-    else if(s === "non") res.etat = "bloque";
-    return res;
+/* =======================================================================
+   RELEVÉS DÉJÀ FAITS (lecture du Sheet au démarrage)
+   ======================================================================= */
+async function loadReleves(){
+  const pill = document.getElementById('pillSync');
+  if(!CONFIG.APPS_SCRIPT_URL || CONFIG.APPS_SCRIPT_URL.startsWith('COLLE')){
+    pill.textContent = 'Sync non configurée'; pill.className = 'pill off'; return;
   }
-  // mode liste (menus déroulants du fichier Excel)
-  const s = String(v).trim();
-  if(def.fait && def.fait.includes(s)) res.etat = "fait";
-  if(def.alerte && def.alerte.includes(s)){ res.etat = "fait"; res.alerte = true; }
-  if(def.encours && def.encours.includes(s)) res.etat = "encours";
-  return res;
+  try{
+    const r = await fetch(CONFIG.APPS_SCRIPT_URL + '?action=list');
+    const j = await r.json();
+    (j.releves||[]).forEach(x=> releves[x.id] = x);
+    pill.textContent = (j.releves||[]).length + ' relevés';
+    pill.className = 'pill on';
+    refresh();
+  }catch(e){
+    pill.textContent = 'Sync KO'; pill.className = 'pill off';
+  }
 }
 
-function versDate(v){
-  if(v instanceof Date && !isNaN(v)) return v;
-  if(typeof v === "number" && v > 40000 && v < 60000)      // n° de série Excel
-    return new Date(Math.round((v - 25569) * 86400 * 1000));
-  return null;
-}
-function fmtDate(d){ return d ? d.toLocaleDateString("fr-FR") : ""; }
-
-/* ---------- Carte ---------- */
-function initCarte(){
-  carte = L.map("carte", { preferCanvas:true }).setView([49.24, -0.05], 11);
-  fonds.plan = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-    { attribution:"© OpenStreetMap, © CARTO", maxZoom:20 });
-  fonds.ortho = L.tileLayer(
-    "https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/jpeg&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
-    { attribution:"© IGN — Géoplateforme", maxZoom:20,
-      errorTileUrl:"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" });
-  fonds.plan.addTo(carte);
-  calquePoints = L.layerGroup().addTo(carte);
+/* =======================================================================
+   EXPORTS
+   ======================================================================= */
+function dl(name, content, mime){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], {type:mime}));
+  a.download = name; a.click();
 }
 
-function basculerFond(nom){
-  Object.values(fonds).forEach(f => carte.removeLayer(f));
-  fonds[nom].addTo(carte);
-  document.getElementById("bm-plan").classList.toggle("actif", nom === "plan");
-  document.getElementById("bm-ortho").classList.toggle("actif", nom === "ortho");
+function exportCsv(){
+  const list = Object.values(releves);
+  if(!list.length) return toast('Aucun relevé');
+  const keys = [...new Set(list.flatMap(Object.keys))];
+  const esc = v => '"' + String(v??'').replace(/"/g,'""') + '"';
+  const csv = '\uFEFF' + keys.join(';') + '\n' +
+    list.map(o=>keys.map(k=>esc(o[k])).join(';')).join('\n');
+  dl('releves_dalles.csv', csv, 'text/csv;charset=utf-8');
 }
 
-/* Marqueur SVG : forme = type de chantier, couleur = avancement */
-function iconeSite(s){
-  const c = COULEURS[s.statut];
-  let forme;
-  if(s.type === "Dalle PDR")
-    forme = '<rect x="3" y="3" width="14" height="14" fill="'+c+'" stroke="#fff" stroke-width="2"/>';
-  else if(s.type === "Dalle cabane à cartons")
-    forme = '<polygon points="10,2 18,17 2,17" fill="'+c+'" stroke="#fff" stroke-width="2"/>';
-  else
-    forme = '<circle cx="10" cy="10" r="7" fill="'+c+'" stroke="#fff" stroke-width="2"/>';
-  return L.divIcon({
-    html:'<svg width="20" height="20" style="filter:drop-shadow(0 1px 1px rgba(0,0,0,.4));">'+forme+'</svg>',
-    className:"", iconSize:[20,20], iconAnchor:[10,10]
-  });
+function exportGeo(){
+  const list = Object.values(releves);
+  if(!list.length) return toast('Aucun relevé');
+  const fc = {type:'FeatureCollection', features:list.map(o=>({
+    type:'Feature',
+    geometry:{type:'Point', coordinates:[ +(o.lon_gps||o.lon_theo), +(o.lat_gps||o.lat_theo) ]},
+    properties:o
+  }))};
+  dl('releves_dalles.geojson', JSON.stringify(fc,null,1), 'application/geo+json');
 }
 
-function fichePopup(s){
-  const icones = { fait:"✅", encours:"🔶", bloque:"❌", afaire:"○" };
-  let h = '<div class="fiche"><h3>' + s.commune +
-          '<span class="badge-prio">Prio. ' + (s.prio ?? "–") + '</span></h3>' +
-          '<div class="type">' + s.type + ' — ' + s.faites + '/9 étapes</div><ul>';
-  s.etapes.forEach(e => {
-    const ico = e.alerte ? "⚠️" : icones[e.etat];
-    h += '<li><span class="ico">' + ico + '</span>' + e.nom +
-         (e.date ? '<span class="dt">' + fmtDate(e.date) + '</span>' :
-          (e.brut && e.etat !== "afaire" && !(e.brut instanceof Date) ? '<span class="dt">' + e.brut + '</span>' : "")) +
-         '</li>';
-  });
-  h += '</ul>';
-  if(s.lat !== null)
-    h += '<a href="https://www.google.com/maps?q=' + s.lat + ',' + s.lng + '" target="_blank">Voir sur Google Maps ↗</a>';
-  return h + '</div>';
+/* =======================================================================
+   ÉVÉNEMENTS
+   ======================================================================= */
+// tiroir latéral (mobile)
+const panel = document.getElementById('panel'), overlay = document.getElementById('overlay');
+function togglePanel(on){
+  panel.classList.toggle('open', on);
+  overlay.classList.toggle('show', on);
 }
+document.getElementById('btnPanel').onclick = ()=>togglePanel(!panel.classList.contains('open'));
+overlay.onclick = ()=>togglePanel(false);
+// sur mobile, un filtre appliqué referme le tiroir pour revenir à la carte
+panel.addEventListener('change', ()=>{ if(window.innerWidth <= 860) togglePanel(false); });
 
-/* ---------- Filtres ---------- */
-function initFiltres(){
-  const sel = document.getElementById("f-commune");
-  [...new Set(sites.map(s => s.commune))].sort().forEach(c => {
-    const o = document.createElement("option"); o.value = c; o.textContent = c; sel.appendChild(o);
-  });
-  document.querySelectorAll(".filtres select").forEach(e => e.onchange = toutRafraichir);
-  document.querySelectorAll(".chip").forEach(ch =>
-    ch.onclick = () => { ch.classList.toggle("actif"); toutRafraichir(); });
-}
+// localisation de l'utilisateur
+let moi = null;
+document.getElementById('btnLoc').onclick = ()=>{
+  if(!navigator.geolocation) return toast('Géolocalisation indisponible');
+  toast('Localisation…', 1500);
+  navigator.geolocation.getCurrentPosition(p=>{
+    const ll = [p.coords.latitude, p.coords.longitude];
+    if(moi) map.removeLayer(moi);
+    moi = L.circleMarker(ll, {radius:7, color:'#1565C0', weight:3, fillColor:'#42A5F5', fillOpacity:.9})
+          .addTo(map).bindPopup('Ma position (± ' + Math.round(p.coords.accuracy) + ' m)');
+    map.setView(ll, Math.max(map.getZoom(), 17));
+  }, e=>toast('Localisation impossible : ' + e.message, 4000), {enableHighAccuracy:true, timeout:15000});
+};
 
-function reinitFiltres(){
-  document.querySelectorAll(".filtres select").forEach(e => e.value = "");
-  document.querySelectorAll(".chip").forEach(ch => ch.classList.add("actif"));
-  toutRafraichir();
-}
+document.getElementById('srcUrl').value = CONFIG.SOURCE_XLSX;
+document.getElementById('btnLoad').onclick = ()=>loadFromUrl(document.getElementById('srcUrl').value);
+document.getElementById('btnLocal').onclick = ()=>document.getElementById('fileLocal').click();
+document.getElementById('fileLocal').onchange = e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const rd = new FileReader();
+  rd.onload = ev => parseWorkbook(new Uint8Array(ev.target.result));
+  rd.readAsArrayBuffer(f);
+};
+document.getElementById('fCommune').onchange = refresh;
+document.getElementById('fEtat').onchange = refresh;
+document.getElementById('ficheClose').onclick = closeFiche;
+document.getElementById('btnSend').onclick = sendFiche;
+document.getElementById('btnJson').onclick = ()=>{
+  const d = collect(); d.photos_nb = photos.length;
+  releves[d.id] = d; refresh();
+  dl('releve_' + d.id + '.json', JSON.stringify(d,null,2), 'application/json');
+  toast('Relevé sauvé en local (photos non incluses)');
+};
+document.getElementById('expCsv').onclick = exportCsv;
+document.getElementById('expGeo').onclick = exportGeo;
 
-function sitesFiltres(){
-  const commune = document.getElementById("f-commune").value;
-  const prio    = document.getElementById("f-prio").value;
-  const statut  = document.getElementById("f-statut").value;
-  const types   = [...document.querySelectorAll(".chip.actif")].map(c => c.dataset.type);
-  return sites.filter(s =>
-    (!commune || s.commune === commune) &&
-    (!prio    || String(s.prio) === prio) &&
-    (!statut  || s.statut === statut) &&
-    types.includes(s.type)
-  );
-}
-
-/* ---------- Rafraîchissement des deux volets ---------- */
-function toutRafraichir(){
-  const liste = sitesFiltres();
-  majCarte(liste);
-  majSuivi(liste);
-}
-
-function majCarte(liste){
-  calquePoints.clearLayers();
-  const pts = [];
-  liste.forEach(s => {
-    if(s.lat === null) return;
-    pts.push([s.lat, s.lng]);
-    L.marker([s.lat, s.lng], { icon: iconeSite(s) })
-      .bindPopup(fichePopup(s), { maxWidth: 340 })
-      .addTo(calquePoints);
-  });
-  if(pts.length) carte.fitBounds(pts, { padding:[30,30], maxZoom:14 });
-}
-
-function majSuivi(liste){
-  /* Indicateurs clés */
-  const n = liste.length;
-  const cpt = idx => liste.filter(s => s.etapes[idx].etat === "fait").length;
-  const kpis = [
-    { lab:"Sites (filtre actif)", val:n, cls:"" },
-    { lab:"Conventions signées", val:cpt(0), cls:"" },
-    { lab:"Implantations validées", val:cpt(1), cls:"" },
-    { lab:"DT-DICT déposées", val:cpt(2), cls:"" },
-    { lab:"Alertes réseau / blocages", val:liste.filter(s => s.statut === "alerte").length, cls:"alerte" },
-    { lab:"Chantiers terminés", val:liste.filter(s => s.statut === "termine").length, cls:"ok" }
-  ];
-  document.getElementById("kpis").innerHTML = kpis.map(k =>
-    '<div class="kpi ' + k.cls + '"><div class="val">' + k.val + '</div><div class="lab">' + k.lab + '</div></div>'
-  ).join("");
-
-  /* Barres par commune */
-  const parCommune = {};
-  liste.forEach(s => {
-    (parCommune[s.commune] = parCommune[s.commune] || []).push(s);
-  });
-  document.getElementById("communes-bars").innerHTML =
-    Object.keys(parCommune).sort().map(c => {
-      const ss = parCommune[c];
-      const pct = Math.round(100 * ss.reduce((a,s) => a + s.faites, 0) / (9 * ss.length));
-      return '<div class="cbar"><div>' + c + ' <span style="color:#999;">(' + ss.length + ')</span></div>' +
-             '<div class="barre"><div style="width:' + pct + '%"></div></div>' +
-             '<div class="pct">' + pct + ' %</div></div>';
-    }).join("") || '<div style="color:#888;font-size:.85rem;">Aucun site ne correspond aux filtres.</div>';
-
-  /* Tableau détaillé */
-  const sansGps = liste.filter(s => s.lat === null).length;
-  document.getElementById("compteur-table").textContent =
-    "— " + n + " site" + (n>1?"s":"") + (sansGps ? " (" + sansGps + " sans coordonnées GPS, non affiché(s) sur la carte)" : "");
-  const tri = [...liste].sort((a,b) => (a.prio||9) - (b.prio||9) || a.commune.localeCompare(b.commune));
-  document.querySelector("#table-sites tbody").innerHTML = tri.map(s => {
-    const minis = s.etapes.map(e =>
-      '<span class="' + (e.alerte ? "a" : (e.etat === "fait" ? "d" : "")) + '" title="' + e.nom + '"></span>').join("");
-    return '<tr><td>' + s.commune + '</td><td>' + s.type.replace("Dalle ","") + '</td><td>' + (s.prio ?? "–") +
-           '</td><td><div class="mini-steps">' + minis + '</div></td><td>' + s.etapeEnCours +
-           '</td><td><span class="statut-pill" style="background:' + COULEURS[s.statut] + '">' +
-           LIBELLES[s.statut] + '</span></td></tr>';
-  }).join("");
-}
-
-/* ---------- Navigation entre volets ---------- */
-function montrerVue(nom){
-  document.getElementById("vue-carte").style.display = nom === "carte" ? "block" : "none";
-  document.getElementById("vue-suivi").style.display = nom === "suivi" ? "block" : "none";
-  document.getElementById("btn-carte").classList.toggle("actif", nom === "carte");
-  document.getElementById("btn-suivi").classList.toggle("actif", nom === "suivi");
-  if(nom === "carte" && carte) setTimeout(() => carte.invalidateSize(), 60);
-}
-
-/* ---------- Erreur de chargement + secours fichier local ---------- */
-function afficherErreur(err){
-  const m = document.getElementById("message");
-  m.style.display = "block";
-  document.getElementById("message-contenu").innerHTML =
-    "<b>Le fichier Excel n'a pas pu être chargé.</b><br>" +
-    "Vérifie que <code>" + CONFIG.fichierExcel + "</code> est bien commité dans le même dossier que cette page " +
-    "(nom exact, majuscules comprises).<br>" +
-    "<span style='color:#888;font-size:.8rem;'>Détail : " + err.message +
-    " — en ouverture locale (file://), le chargement automatique est bloqué par le navigateur.</span><br>" +
-    "En attendant, tu peux charger le fichier manuellement :<br>" +
-    "<input type='file' accept='.xlsx' onchange='chargerLocal(this)'>";
-}
-function chargerLocal(input){
-  const f = input.files[0];
-  if(!f) return;
-  const lecteur = new FileReader();
-  lecteur.onload = e => chargerClasseur(e.target.result);
-  lecteur.readAsArrayBuffer(f);
-}
-
-demarrer();
+loadReleves();
+loadFromUrl(CONFIG.SOURCE_XLSX);
 </script>
 </body>
 </html>
