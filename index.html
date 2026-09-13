@@ -600,7 +600,15 @@ function openFiche(d){
     <button class="wide" id="btnPhoto">Ajouter des photos</button>
     <input type="file" id="inPhoto" accept="image/*" capture="environment" multiple style="display:none">
     <p class="help">Vue d'ensemble, accès toupie, pente, réseaux visibles. Max 6, compressées automatiquement.</p>
-    <div class="photos" id="phList"></div></div>`;
+    <div class="photos" id="phList"></div>
+    ${saved.photos ? '<p class="help" style="margin-top:9px">Photos du relevé précédent</p><div class="photos">' +
+      String(saved.photos).split('|').map(u=>u.trim()).filter(Boolean).map(u=>{
+        const id = (u.match(/\/d\/([^\/]+)/) || [])[1];
+        return `<a class="ph" href="${u}" target="_blank">` +
+          (id ? `<img src="https://drive.google.com/thumbnail?id=${id}&sz=w200">` : '📷') + `</a>`;
+      }).join('') +
+      '</div><p class="help">Les nouvelles photos s\'ajoutent, elles ne remplacent pas les anciennes.</p>' : ''}
+    </div>`;
   body.append(fsP);
   fsP.querySelector('.acc-h').onclick = e=>{
     if(e.target.closest('#btnPhoto')) return;
