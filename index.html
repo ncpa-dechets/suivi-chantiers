@@ -58,7 +58,7 @@ header h1{margin:1px 0 0; font-size:17px; font-weight:600}
 label.f{display:block; font-size:12px; color:var(--gris); margin:6px 0 2px}
 /* 16px : en dessous, iOS zoome automatiquement à chaque clic dans un champ */
 input,select,textarea,button{font-family:inherit; font-size:16px}
-input[type=text],input[type=number],select,textarea{
+input[type=text],input[type=number],input[type=date],select,textarea{
   width:100%; padding:11px 10px; border:1px solid var(--bord); border-radius:6px; background:#fff;
   min-height:44px; -webkit-appearance:none; appearance:none;
 }
@@ -127,10 +127,36 @@ legend{font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var
   border-radius:50%; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.3); font-size:19px; padding:0;
 }
 
+/* barre de filtres rapides sur la carte */
+#qf{position:absolute; left:10px; right:68px; bottom:22px; z-index:800; display:flex; gap:6px;
+  overflow-x:auto; scrollbar-width:none; padding:2px}
+#qf::-webkit-scrollbar{display:none}
+#qf button{flex:0 0 auto; display:flex; align-items:center; gap:6px; min-height:38px; padding:6px 12px;
+  border-radius:20px; background:#fff; border:1px solid var(--bord); box-shadow:0 1px 5px rgba(0,0,0,.25);
+  font-size:13.5px; font-weight:600; white-space:nowrap; color:#22262b}
+#qf button .d{width:12px; height:12px; border-radius:50%; flex:0 0 auto}
+#qf button.off{opacity:.5; box-shadow:none; text-decoration:line-through}
+#qf button.off .d{background:transparent !important; border:2px solid #9aa0a6}
+#qf .sep{flex:0 0 1px; background:rgba(0,0,0,.18); margin:6px 2px}
+#qf .n{font-weight:400; color:var(--gris)}
+
 .photos{display:flex; flex-wrap:wrap; gap:6px; margin-top:7px}
 .ph{position:relative; width:76px; height:76px; border-radius:6px; overflow:hidden; border:1px solid var(--bord)}
 .ph img{width:100%; height:100%; object-fit:cover}
-.ph button{position:absolute; top:1px; right:1px; background:rgba(0,0,0,.6); color:#fff; border:none; border-radius:4px; padding:1px 6px; font-size:12px}
+.ph button{position:absolute; top:1px; right:1px; background:rgba(0,0,0,.6); color:#fff; border:none; border-radius:4px; padding:1px 6px; font-size:12px; min-height:0}
+.ph .cap{position:absolute; left:0; right:0; bottom:0; background:rgba(0,0,0,.6); color:#fff; font-size:10px; line-height:1.2; padding:2px 3px; text-align:center}
+a.ph{display:block; text-decoration:none; color:var(--gris); text-align:center; line-height:76px}
+
+/* boutons photo par catégorie (= cases « Photos prises » de la fiche papier) */
+.phcats{display:grid; grid-template-columns:1fr 1fr; gap:6px}
+.phcats button{font-size:14px; padding:10px 6px; min-height:46px}
+.phcats button.got{border:2px solid var(--ok); color:var(--ok)}
+
+/* résultats calculés automatiquement */
+.calc{background:var(--fond); border:1px dashed var(--bord); border-radius:6px; padding:9px 10px; font-size:14px}
+.calc b{font-size:16px}
+.pop .thumbs{display:flex; gap:4px; margin-top:6px}
+.pop .thumbs img{width:54px; height:54px; object-fit:cover; border-radius:4px; border:1px solid var(--bord)}
 
 .badge{display:inline-block; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:700; color:#fff}
 .b-simple{background:var(--ok)} .b-vig{background:var(--warn)} .b-cplx{background:#B4451E} .b-bloq{background:var(--danger)}
@@ -145,6 +171,83 @@ legend{font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var
 .leaflet-popup-content{margin:9px 11px; font-family:inherit}
 .pop b{font-size:14px}
 .pop .l{font-size:12px; color:var(--gris)}
+
+/* =================== RAPPORT PDF (A4 recto-verso) =================== */
+#rapport{position:fixed; inset:0; z-index:3000; background:#4a4f56; overflow:auto; display:none; -webkit-overflow-scrolling:touch}
+#rapport.show{display:block}
+#rapBar{position:sticky; top:0; z-index:5; display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+  padding:8px 12px calc(8px) 12px; background:#22262b; color:#fff}
+#rapBar .st{font-size:13px; opacity:.85; margin-right:auto}
+#rapBar button{min-height:42px}
+#rapPages{padding:14px 0 30px}
+.r-page{
+  width:210mm; height:297mm; margin:0 auto 14px; background:#fff; box-shadow:0 3px 14px rgba(0,0,0,.4);
+  padding:0 12mm 8mm; display:flex; flex-direction:column; overflow:hidden; position:relative;
+  font-family:Calibri,Carlito,"Segoe UI",system-ui,sans-serif; color:#22262b; font-size:10pt; line-height:1.3;
+  -webkit-print-color-adjust:exact; print-color-adjust:exact;
+}
+.r-head{background:var(--rouge); color:#fff; margin:0 -12mm; padding:7mm 12mm 5.5mm;
+  border-bottom:2mm solid var(--vert); display:flex; gap:6mm; align-items:flex-start}
+.r-head .ey{font-size:7.5pt; letter-spacing:.14em; text-transform:uppercase; opacity:.9; font-weight:700}
+.r-head h1{font-size:19pt; margin:1.5mm 0 1mm; font-weight:700; line-height:1.1}
+.r-head .sub{font-size:10.5pt; opacity:.95}
+.r-diff{margin-left:auto; text-align:center; flex:0 0 auto}
+.r-diff small{display:block; font-size:7pt; letter-spacing:.12em; text-transform:uppercase; opacity:.9; margin-bottom:1.2mm}
+.r-pill{display:inline-block; padding:1.6mm 4.5mm; border-radius:6mm; font-weight:700; font-size:11pt;
+  border:.6mm solid #fff; color:#fff; background:#7a7f86}
+.r-pill.Simple{background:var(--ok)} .r-pill.Vigilance{background:var(--warn)}
+.r-pill.Complexe{background:#B4451E} .r-pill.Bloquant{background:#7f1010}
+.r-meta{display:flex; gap:7mm; padding:3mm 0 2.5mm; border-bottom:.3mm solid var(--bord); font-size:9.5pt; color:var(--gris)}
+.r-meta b{color:#22262b}
+.r-maps{display:grid; grid-template-columns:1.62fr 1fr; gap:3.5mm; height:80mm; margin-top:4mm; flex:0 0 auto}
+.r-map{position:relative; border-radius:2mm; overflow:hidden; background:#eceef0}
+.r-map img{width:100%; height:100%; object-fit:cover; display:block}
+.r-map .cap{position:absolute; left:2mm; bottom:2mm; background:rgba(255,255,255,.92); color:#22262b;
+  font-size:7.5pt; padding:.8mm 2mm; border-radius:1mm}
+.r-map .pin{position:absolute; left:50%; top:50%; width:9mm; height:11.5mm; transform:translate(-50%,-100%)}
+.r-map.ko img{display:none}
+.r-map.ko::after{content:"Vue IGN indisponible"; position:absolute; inset:0; display:flex; align-items:center;
+  justify-content:center; color:var(--gris); font-size:9pt}
+.r-figs{display:grid; grid-template-columns:repeat(6,1fr); gap:2.5mm; margin-top:4mm; flex:0 0 auto}
+.r-fig{background:var(--fond); border-top:1mm solid var(--rouge); border-radius:0 0 1.5mm 1.5mm; padding:2mm 2.5mm}
+.r-fig b{display:block; font-size:14pt; line-height:1.15}
+.r-fig span{font-size:7pt; text-transform:uppercase; letter-spacing:.06em; color:var(--gris)}
+.r-fig span i{text-transform:none; font-style:normal; letter-spacing:0}
+.r-fig.vide b{color:#b9bdc2}
+.r-cols{display:grid; grid-template-columns:1fr 1fr; gap:8mm; flex:1 1 auto; min-height:0; overflow:hidden}
+.r-h{font-size:8.5pt; text-transform:uppercase; letter-spacing:.09em; color:var(--rouge); font-weight:700;
+  border-bottom:.4mm solid var(--rouge); padding-bottom:1mm; margin:5mm 0 1.5mm}
+.r-kv.c2{display:grid; grid-template-columns:1fr 1fr; column-gap:8mm}
+.r-row{display:flex; justify-content:space-between; gap:3mm; padding:1.25mm 0; border-bottom:.2mm dotted #c9cdd2}
+.r-row span{color:var(--gris); font-size:9pt}
+.r-row b{text-align:right; max-width:58%; font-size:9.5pt}
+.r-row b.al{color:#B4451E}
+.r-vide{color:#9aa0a6; font-style:italic; font-size:9pt; margin:1mm 0}
+.r-head2{display:flex; align-items:baseline; gap:4mm; padding:7mm 0 2.5mm; border-bottom:1mm solid var(--rouge)}
+.r-head2 b{font-size:12pt} .r-head2 span{color:var(--gris); font-size:9pt}
+.r-head2 .r-pill{margin-left:auto; font-size:9pt; padding:1mm 3.5mm; border-width:0}
+.r-obs{background:var(--fond); border-left:1.2mm solid var(--rouge); padding:2.5mm 3.5mm; white-space:pre-wrap;
+  font-size:10pt; max-height:46mm; overflow:hidden; flex:0 0 auto}
+.r-photos{flex:1 1 auto; min-height:0; overflow:hidden; display:grid; gap:2.5mm; align-content:start; margin-top:1mm}
+.r-photos.g1{grid-template-columns:minmax(0,150mm); justify-content:center} .r-photos.g2{grid-template-columns:1fr 1fr}
+.r-photos.g4{grid-template-columns:1fr 1fr} .r-photos.g6,.r-photos.g9{grid-template-columns:1fr 1fr 1fr}
+.r-photos figure{margin:0; aspect-ratio:4/3; position:relative; overflow:hidden; border-radius:1.5mm; background:#eceef0}
+.r-photos img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover}
+.r-photos figcaption{position:absolute; left:0; bottom:0; background:rgba(34,38,43,.78); color:#fff;
+  font-size:7.5pt; padding:.8mm 2.2mm; border-top-right-radius:1.5mm}
+.r-nophoto{flex:1; display:flex; align-items:center; justify-content:center; color:#9aa0a6; font-style:italic;
+  border:.3mm dashed var(--bord); border-radius:2mm; margin-top:1mm}
+.r-foot{flex:0 0 auto; margin-top:3mm; padding-top:1.8mm; border-top:.3mm solid var(--bord);
+  display:flex; justify-content:space-between; gap:4mm; font-size:7.3pt; color:var(--gris)}
+@media print{
+  @page{size:A4; margin:0}
+  html,body{height:auto !important; overflow:visible !important; display:block !important; background:#fff !important}
+  body > *:not(#rapport){display:none !important}
+  #rapport{position:static !important; display:block !important; background:none; overflow:visible}
+  #rapBar{display:none !important}
+  #rapPages{padding:0}
+  .r-page{margin:0; box-shadow:none; zoom:1 !important; break-after:page; page-break-after:always}
+}
 
 @media(max-width:860px){
   /* le panneau devient un tiroir : la carte occupe tout l'écran */
@@ -214,11 +317,10 @@ legend{font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var
       <label class="f">Type d'équipement</label>
       <div id="fTypes"></div>
       <label class="f">État du relevé</label>
-      <select id="fEtat">
-        <option value="">Tous</option>
-        <option value="todo">À relever</option>
-        <option value="done">Relevé fait</option>
-      </select>
+      <div id="fEtat">
+        <label class="chk"><input type="checkbox" value="done" checked> Relevés faits</label>
+        <label class="chk"><input type="checkbox" value="todo" checked> À relever</label>
+      </div>
     </div>
 
     <div class="sec">
@@ -245,7 +347,9 @@ legend{font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var
       <h3>Exports</h3>
       <button class="wide" id="expCsv">Relevés → CSV</button>
       <button class="wide" id="expGeo">Relevés → GeoJSON (QGIS)</button>
-      <p class="muted">Les relevés sont aussi envoyés automatiquement dans le Google Sheet.</p>
+      <button class="wide" id="expPdf">Rapports PDF (sites affichés)</button>
+      <p class="muted">Les relevés sont aussi envoyés automatiquement dans le Google Sheet.<br>
+      Rapports PDF : un recto-verso par site relevé, selon les filtres (commune, type).</p>
     </div>
 
   </aside>
@@ -253,6 +357,7 @@ legend{font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var
   <div id="mapwrap">
     <div id="map"></div>
     <button id="btnLoc" title="Me localiser">◎</button>
+    <div id="qf"></div>
   </div>
 </div>
 <div id="overlay"></div>
@@ -268,13 +373,24 @@ legend{font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var
   <div id="ficheBody"></div>
   <div id="ficheFoot">
     <div class="row2">
-      <button id="btnJson">Sauver en local</button>
+      <button id="btnJson">Sauver local</button>
+      <button id="btnPdf">Rapport PDF</button>
       <button class="primary" id="btnSend">Envoyer</button>
     </div>
   </div>
 </div>
 
 <div id="toast"></div>
+
+<!-- ================= RAPPORT PDF (aperçu puis impression) ================= -->
+<div id="rapport">
+  <div id="rapBar">
+    <span class="st" id="rapStatut">—</span>
+    <button class="primary" id="rapPrint">Enregistrer en PDF</button>
+    <button id="rapClose">Fermer</button>
+  </div>
+  <div id="rapPages"></div>
+</div>
 
 <script>
 /* =======================================================================
@@ -293,45 +409,69 @@ const CONFIG = {
 };
 
 /* =======================================================================
-   SCHÉMA DE LA FICHE TERRAIN
+   SCHÉMA DE LA FICHE TERRAIN — calé sur la fiche Word « Reconnaissance terrain »
    Pour ajouter une question : copier une ligne et l'adapter.
-   types : 'select' | 'num' | 'text' | 'textarea' | 'bool'
+   types : 'select' | 'num' | 'text' | 'textarea' | 'bool' | 'date' | 'calc'
+   si:{k,v}  → le champ n'apparaît que si le champ k vaut v
+   'calc'    → résultat calculé automatiquement (non saisi)
    ======================================================================= */
 const FICHE = [
- {s:"Accès et stationnement de la toupie", items:[
-   {k:"toupie_distance", l:"Distance toupie → dalle (m)", t:"num", help:"Au-delà de ~4 m la goulotte ne suffit plus."},
-   {k:"toupie_moyen", l:"Moyen d'acheminement du béton", t:"select", o:["Goulotte directe","Goulotte + rallonges","Brouettage","Tapis","Pompe à béton","À déterminer"]},
-   {k:"toupie_stationnement", l:"Où stationne la toupie", t:"text", help:"Ex : sur la chaussée devant le n°12, ou sur le parking."},
-   {k:"voie_largeur", l:"Largeur d'accès utile (m)", t:"num"},
-   {k:"hauteur_libre", l:"Contrainte de hauteur au-dessus de l'accès", t:"select", o:["Aucune","Branches d'arbres","Lignes aériennes","Porche / passage couvert","Autre"]},
-   {k:"portance", l:"Doute sur la portance ou le tonnage admis", t:"bool", help:"Pont, trottoir, place engazonnée, voie limitée en tonnage."},
-   {k:"lavage", l:"Lavage de goulotte possible sur place", t:"bool"}
+ {s:"Visite", items:[
+   {k:"date_visite", l:"Date de visite", t:"date"},
+   {k:"releveur", l:"Relevé par", t:"text"},
+   {k:"accompagnant", l:"Accompagné de", t:"text"}
  ]},
- {s:"Terrain et emprise", items:[
-   {k:"pente", l:"Pente du terrain", t:"select", o:["Nulle ou négligeable","Faible (< 3 %)","Marquée (3 à 8 %)","Forte (> 8 %)"]},
-   {k:"pente_sens", l:"Sens d'écoulement de l'eau", t:"select", o:["Vers la chaussée","À l'opposé de la chaussée","Vers une propriété riveraine","Vers un avaloir / grille","Indéterminé"]},
-   {k:"sol", l:"Nature du sol existant", t:"select", o:["Enrobé","Terre / herbe","Grave ou stabilisé","Pavés / dallage","Béton existant","Mixte"]},
-   {k:"decaissement", l:"Décaissement nécessaire", t:"bool"},
-   {k:"deblais_m3", l:"Volume de déblais estimé (m³)", t:"num"},
-   {k:"deblais_exutoire", l:"Destination des déblais", t:"text"},
+ {s:"2. Dalle et béton", items:[
+   {k:"dalle_long", l:"Longueur à couler (m)", t:"num"},
+   {k:"dalle_larg", l:"Largeur à couler (m)", t:"num"},
+   {k:"surface_m2", l:"Surface", t:"calc"},
+   {k:"epaisseur", l:"Épaisseur", t:"select", o:["10 cm","12,5 cm","Autre"]},
+   {k:"epaisseur_autre", l:"Autre épaisseur (cm)", t:"num", si:{k:"epaisseur", v:"Autre"}},
+   {k:"volume_m3", l:"Volume béton à prévoir", t:"calc"},
+   {k:"coffrage_ml", l:"Longueur totale de planches de coffrage (m)", t:"num", help:"perimetre"}
+ ]},
+ {s:"3. Accès et stationnement de la toupie", items:[
+   {k:"acces_facile", l:"Accès facile pour la toupie", t:"bool"},
+   {k:"acces_precisions", l:"Précisions : état de la chaussée, voirie", t:"text"},
+   {k:"manoeuvres", l:"Manœuvres à prévoir", t:"text", help:"Possibilité de marche arrière, de demi-tour…"},
+   {k:"toupie_distance", l:"Distance toupie → dalle estimée (m)", t:"num"},
+   {k:"toupie_stationnement", l:"Stationnement de la toupie", t:"text", help:"Ex : chaussée devant le n°12, parking…"},
+   {k:"voie_largeur", l:"Largeur d'accès disponible (m)", t:"num"},
+   {k:"hauteur_libre", l:"Contrainte de hauteur", t:"select", o:["Aucune","Branches","Lignes aériennes","Porche","Autre"]},
+   {k:"toupie_moyen", l:"Acheminement du béton", t:"select", o:["Goulotte directe","Goulotte + rallonges","Brouettage","À déterminer"]},
+   {k:"goulotte_ml", l:"Longueur de goulotte à prévoir (m)", t:"num", help:"Depuis la position de la toupie jusqu'à la dalle."},
+   {k:"portance", l:"Doute portance / tonnage", t:"bool", help:"Pont, trottoir, espace engazonné, voie limitée."}
+ ]},
+ {s:"4a. Terrain et emprise", items:[
+   {k:"pente", l:"Pente du terrain", t:"select", o:["Nulle","Faible (< 3 %)","Marquée (3 à 8 %)","Forte (> 8 %)"]},
+   {k:"pente_sens", l:"Sens d'écoulement de l'eau", t:"select", o:["Vers la chaussée","Opposé à la chaussée","Vers un riverain","Vers un avaloir","Indéterminé"]},
+   {k:"sol", l:"Nature du sol existant", t:"select", o:["Enrobé","Terre / herbe","Grave / stabilisé","Pavés","Béton existant","Mixte"]},
+   {k:"sol_precisions", l:"Précisions sur le sol", t:"text"},
+   {k:"decaissement", l:"Décaissement / déblais", t:"bool"},
+   {k:"deblais_m3", l:"Volume de déblais (m³)", t:"num", si:{k:"decaissement", v:"Oui"}},
+   {k:"deblais_exutoire", l:"Destination des déblais", t:"text", si:{k:"decaissement", v:"Oui"}},
+   {k:"pelle", l:"Pelle nécessaire", t:"bool"},
    {k:"racines", l:"Arbres ou racines dans l'emprise", t:"bool"},
-   {k:"niveau", l:"Raccordement de niveau à traiter", t:"select", o:["Aucun","Bordure / trottoir","Caniveau","Bordure à créer","Autre"]}
+   {k:"niveau", l:"Raccordement de niveau", t:"select", o:["Aucun","Bordure / trottoir","Caniveau","Bordure à créer","Autre"]}
  ]},
- {s:"Circulation et riverains", items:[
-   {k:"voie_statut", l:"Statut de la voie", t:"select", o:["Voie communale","Route départementale","Parking / domaine privé communal","Autre"], help:"Départementale = permission de voirie à demander au CD14."},
-   {k:"sens_unique", l:"Voie en sens unique", t:"bool"},
-   {k:"places_neutraliser", l:"Places de stationnement à neutraliser", t:"num"},
-   {k:"arrete", l:"Arrêté municipal nécessaire", t:"bool", help:"À anticiper : délai côté commune."},
-   {k:"circulation_mesure", l:"Mesure de circulation à prévoir", t:"select", o:["Aucune","Signalisation simple","Alternat manuel","Alternat par feux","Déviation piétonne PMR","Fermeture de voie"]},
-   {k:"riverains", l:"Riverains ou commerces impactés", t:"text"},
-   {k:"fenetre", l:"Fenêtre d'intervention conseillée", t:"select", o:["Indifférent","Hors saison touristique","Hors jour de marché","Hors période scolaire","Précisé en commentaire"]}
+ {s:"4b. Circulation et riverains", items:[
+   {k:"voie_statut", l:"Statut de la voie", t:"select", o:["Voie communale","Route départementale","Parking / domaine communal","Autre"], help:"Départementale = permission de voirie CD14."},
+   {k:"sens_unique", l:"Sens unique", t:"bool"},
+   {k:"places_neutraliser", l:"Places de stationnement à neutraliser (nombre)", t:"num"},
+   {k:"arrete", l:"Arrêté municipal nécessaire", t:"bool", help:"Délai à anticiper côté commune."},
+   {k:"circulation_mesure", l:"Mesure de circulation à prendre", t:"select", o:["Aucune","Signalisation simple","Alternat manuel","Déviation piétonne","Fermeture temporaire de voie"]},
+   {k:"riverains", l:"Riverains / commerces impactés", t:"text"},
+   {k:"frequentation", l:"Fréquentation juste après coulage problématique ?", t:"text", help:"Ex : sortie d'école, marché, parking très utilisé…"}
  ]},
- {s:"Synthèse", items:[
-   {k:"difficulte", l:"Niveau de difficulté du chantier", t:"select", o:["Simple","Vigilance","Complexe","Bloquant"]},
-   {k:"commentaire", l:"Observations libres", t:"textarea"},
-   {k:"releveur", l:"Relevé effectué par", t:"text"}
+ {s:"5b. Synthèse", items:[
+   {k:"difficulte", l:"Niveau de difficulté", t:"select", o:["Simple","Vigilance","Complexe","Bloquant"]},
+   {k:"commentaire", l:"Observations / remarques importantes", t:"textarea", help:"Si le niveau n'est pas « Simple » : décrire brièvement le ou les problèmes à anticiper."}
  ]}
 ];
+
+// catégories de photos = cases « Photos prises » de la fiche papier
+const PHOTO_CATS = ["Vue d'ensemble","Accès toupie","Pente","Obstacles / réseaux","Autre"];
+const PHOTO_MAX  = 8;
 
 /* =======================================================================
    ÉTAT
@@ -446,12 +586,35 @@ function typeOf(row){
 }
 
 function isAgrandissement(row){ return /agrand|extens/i.test(val(row,'travaux')); }
+// Création ex nihilo / Agrandissement / Aménagement (dalle présente, claustra à ajouter)
+function natureTravaux(row){
+  const t = val(row,'travaux');
+  if(/agrand|extens/i.test(t)) return 'agrandissement';
+  if(/am[ée]nag/i.test(t))     return 'aménagement';
+  return 'création';
+}
+
+// Lit la colonne « photos » du Sheet : une ligne par photo « Catégorie : lien »
+// (l'ancien format « lien | lien » reste lisible)
+function parsePhotos(txt){
+  return String(txt||'').split(/\n|\|/).map(x=>x.trim()).filter(Boolean).map(x=>{
+    const url = (x.match(/https?:\/\/\S+/)||[])[0] || '';
+    const cat = x.replace(url,'').replace(/[:\s]+$/,'').trim() || 'Photo';
+    const id  = (url.match(/\/d\/([^\/?]+)/) || url.match(/[?&]id=([^&]+)/) || [])[1];
+    // 2 adresses de miniature Google : si la 1re échoue, la page essaie la 2de
+    return {cat, url,
+      thumb : id ? `https://lh3.googleusercontent.com/d/${id}=w400` : '',
+      thumb2: id ? `https://drive.google.com/thumbnail?id=${id}&sz=w400` : ''};
+  }).filter(p=>p.url);
+}
 
 function refresh(){
   layer.clearLayers(); markers = {};
   const fc = document.getElementById('fCommune').value;
-  const fe = document.getElementById('fEtat').value;
   const actifs = [...document.querySelectorAll('#fTypes input:checked')].map(i=>i.value);
+  const voirFaits  = document.querySelector('#fEtat input[value=done]').checked;
+  const voirAFaire = document.querySelector('#fEtat input[value=todo]').checked;
+  const compte = {};   // nombre de sites par pastille (commune filtrée)
 
   let n=0, done=0, bloq=0;
   const bounds = [];
@@ -466,9 +629,11 @@ function refresh(){
     const rv = releves[id];
 
     if(fc && val(row,'commune') !== fc) return;
-    if(actifs.length && !actifs.includes(ty.k)) return;
-    if(fe === 'done' && !rv) return;
-    if(fe === 'todo' && rv) return;
+    compte[ty.k] = (compte[ty.k]||0) + 1;
+    compte[rv ? 'done' : 'todo'] = (compte[rv ? 'done' : 'todo']||0) + 1;
+    if(!actifs.includes(ty.k)) return;      // tout décoché = rien n'est affiché
+    if(rv && !voirFaits) return;
+    if(!rv && !voirAFaire) return;
 
     n++;
     if(rv) done++;
@@ -499,14 +664,59 @@ function refresh(){
 
   if(bounds.length && !refresh._zoomed){ map.fitBounds(bounds, {padding:[30,30]}); refresh._zoomed = true; }
   fillCommunes();
+  majPastilles(compte);
+}
+
+/* ---------- Pastilles de filtre sur la carte ----------
+   Chaque pastille coche/décoche la case correspondante du panneau :
+   panneau et carte restent donc toujours d'accord. */
+const PASTILLES = [
+  {k:'pdr',    l:'PDR',            box:'#fTypes', c:'--pdr'},
+  {k:'verre',  l:'Verre',          box:'#fTypes', c:'--verre'},
+  {k:'carton', l:'Cartons',        box:'#fTypes', c:'--carton'},
+  {k:'autre',  l:'Autre',          box:'#fTypes', c:'--autre'},
+  {sep:true},
+  {k:'done',   l:'✓ Faits',        box:'#fEtat'},
+  {k:'todo',   l:'○ À faire',      box:'#fEtat'}
+];
+(function creerPastilles(){
+  const bar = document.getElementById('qf');
+  PASTILLES.forEach(p=>{
+    if(p.sep){ bar.insertAdjacentHTML('beforeend','<span class="sep"></span>'); return; }
+    const b = document.createElement('button');
+    b.dataset.k = p.k;
+    b.innerHTML = (p.c ? `<span class="d" style="background:var(${p.c})"></span>` : '') +
+                  `${p.l} <span class="n"></span>`;
+    b.onclick = ()=>{
+      const cb = document.querySelector(`${p.box} input[value=${p.k}]`);
+      cb.checked = !cb.checked;
+      refresh();
+    };
+    bar.append(b);
+  });
+})();
+function majPastilles(compte){
+  PASTILLES.filter(p=>!p.sep).forEach(p=>{
+    const b  = document.querySelector(`#qf button[data-k=${p.k}]`);
+    const cb = document.querySelector(`${p.box} input[value=${p.k}]`);
+    b.classList.toggle('off', !cb.checked);
+    b.querySelector('.n').textContent = compte[p.k] || 0;
+    // une catégorie absente des données (ex. aucun « Autre ») n'encombre pas la barre
+    b.style.display = (p.box==='#fTypes' && !compte[p.k] && cb.checked) ? 'none' : '';
+  });
 }
 
 function popupHtml(d){
   const rv = releves[d.id];
   const b = rv ? `<span class="badge ${badgeCls(rv.difficulte)}">${rv.difficulte||'Relevé fait'}</span>` : '';
+  const ph = rv ? parsePhotos(rv.photos) : [];
+  const th = ph.length ? `<div class="thumbs">` + ph.slice(0,4).map(p=>
+      `<img src="${p.thumb}" title="${p.cat}" ${imgSecours(p.thumb2,'hide')}>`).join('') +
+      `</div><span class="l">📷 ${ph.length} photo(s)</span><br>` : '';
   return `<div class="pop">
     <b>${val(d.row,'adresse') || d.id}</b> ${b}<br>
-    <span class="l">${val(d.row,'commune')} — ${d.ty.l}${isAgrandissement(d.row)?' (agrandissement)':''}</span><br>
+    <span class="l">${val(d.row,'commune')} — ${d.ty.l} (${natureTravaux(d.row)})</span><br>
+    ${th}
     <button style="margin-top:6px" onclick="void 0">Ouvrir la fiche</button>
   </div>`;
 }
@@ -539,7 +749,7 @@ function openFiche(d){
   current = d;
   photos = [];
   const saved = releves[d.id] || {};
-  document.getElementById('ficheType').textContent = d.ty.l + (isAgrandissement(d.row)?' — agrandissement':' — création');
+  document.getElementById('ficheType').textContent = d.ty.l + ' — ' + natureTravaux(d.row);
   document.getElementById('ficheTitre').textContent = val(d.row,'adresse') || d.id;
   document.getElementById('ficheSub').textContent =
     `${val(d.row,'commune')} · ${d.id} · ${d.lat.toFixed(6)}, ${d.lon.toFixed(6)}`;
@@ -555,10 +765,11 @@ function openFiche(d){
   body.append(fsGps);
 
   FICHE.forEach((sec, si)=>{
+    const nbSaisis = sec.items.filter(it=>it.t!=='calc').length;
     const fs = document.createElement('div');
-    fs.className = 'acc' + (si===0 ? ' open' : '');
+    fs.className = 'acc' + (si<=1 ? ' open' : '');
     fs.innerHTML = `<button class="acc-h"><span class="chev">▶</span>
-      <span>${sec.s}</span><span class="cnt">0/${sec.items.length}</span></button>`;
+      <span>${sec.s}</span><span class="cnt">0/${nbSaisis}</span></button>`;
     const cont = document.createElement('div');
     cont.className = 'acc-c';
     fs.append(cont);
@@ -566,11 +777,17 @@ function openFiche(d){
 
     sec.items.forEach(it=>{
       const wrap = document.createElement('div');
-      const v = saved[it.k] ?? '';
+      wrap.className = 'fw';
+      if(it.si){ wrap.dataset.siK = it.si.k; wrap.dataset.siV = it.si.v; }
+      let v = saved[it.k] ?? '';
       let ctrl;
-      if(it.t==='select'){
+      if(it.t==='calc'){
+        ctrl = `<div class="calc" data-calc="${it.k}">—</div>`;
+      } else if(it.t==='select'){
+        // une ancienne valeur absente de la liste est conservée (pas de perte de données)
+        const opts = it.o.includes(v) || v==='' ? it.o : it.o.concat([v]);
         ctrl = `<select data-k="${it.k}"><option value="">—</option>` +
-               it.o.map(o=>`<option ${o===v?'selected':''}>${o}</option>`).join('') + `</select>`;
+               opts.map(o=>`<option ${o===v?'selected':''}>${o}</option>`).join('') + `</select>`;
       } else if(it.t==='bool'){
         ctrl = `<select data-k="${it.k}"><option value="">—</option>
                 <option ${v==='Oui'?'selected':''}>Oui</option>
@@ -579,48 +796,115 @@ function openFiche(d){
         ctrl = `<textarea data-k="${it.k}">${v}</textarea>`;
       } else if(it.t==='num'){
         ctrl = `<input type="number" step="any" inputmode="decimal" data-k="${it.k}" value="${v}">`;
+      } else if(it.t==='date'){
+        ctrl = `<input type="date" data-k="${it.k}" value="${toIsoDate(v) || new Date().toISOString().slice(0,10)}">`;
       } else {
-        ctrl = `<input type="text" data-k="${it.k}" value="${v}">`;
+        ctrl = `<input type="text" data-k="${it.k}" value="${String(v).replace(/"/g,'&quot;')}">`;
       }
-      wrap.innerHTML = `<label class="f">${it.l}</label>${ctrl}` + (it.help?`<p class="help">${it.help}</p>`:'');
+      const help = it.help==='perimetre' ? `<p class="help" data-perim>—</p>` : (it.help?`<p class="help">${it.help}</p>`:'');
+      wrap.innerHTML = `<label class="f">${it.l}</label>${ctrl}${help}`;
       cont.append(wrap);
     });
     body.append(fs);
+
+    // le bloc photos se place juste avant la synthèse, comme sur la fiche papier
+    if(si === FICHE.length-2) body.append(photoBlock(saved));
   });
 
-  // compteur de champs renseignés par section
-  body.querySelectorAll('[data-k]').forEach(el=> el.addEventListener('change', updateCounts));
-  updateCounts();
+  // à chaque saisie : champs conditionnels, calculs, compteurs
+  body.querySelectorAll('[data-k]').forEach(el=>{
+    el.addEventListener('input', majFiche);
+    el.addEventListener('change', majFiche);
+  });
+  majFiche();
 
-  // photos
-  const fsP = document.createElement('div');
-  fsP.className = 'acc open';
-  fsP.innerHTML = `<button class="acc-h"><span class="chev">▶</span><span>Photos</span>
-      <span class="cnt" id="phCnt">0</span></button><div class="acc-c">
-    <button class="wide" id="btnPhoto">Ajouter des photos</button>
-    <input type="file" id="inPhoto" accept="image/*" capture="environment" multiple style="display:none">
-    <p class="help">Vue d'ensemble, accès toupie, pente, réseaux visibles. Max 6, compressées automatiquement.</p>
-    <div class="photos" id="phList"></div>
-    ${saved.photos ? '<p class="help" style="margin-top:9px">Photos du relevé précédent</p><div class="photos">' +
-      String(saved.photos).split('|').map(u=>u.trim()).filter(Boolean).map(u=>{
-        const id = (u.match(/\/d\/([^\/]+)/) || [])[1];
-        return `<a class="ph" href="${u}" target="_blank">` +
-          (id ? `<img src="https://drive.google.com/thumbnail?id=${id}&sz=w200">` : '📷') + `</a>`;
-      }).join('') +
-      '</div><p class="help">Les nouvelles photos s\'ajoutent, elles ne remplacent pas les anciennes.</p>' : ''}
-    </div>`;
-  body.append(fsP);
-  fsP.querySelector('.acc-h').onclick = e=>{
-    if(e.target.closest('#btnPhoto')) return;
-    fsP.classList.toggle('open');
-  };
-
-  document.getElementById('btnPhoto').onclick = ()=>document.getElementById('inPhoto').click();
-  document.getElementById('inPhoto').onchange = e=>addPhotos(e.target.files);
+  document.getElementById('inPhoto').onchange = e=>{ addPhotos(e.target.files); e.target.value=''; };
   document.getElementById('btnGps').onclick = takeGps;
 
   document.getElementById('fiche').classList.add('open');
   body.scrollTop = 0;
+}
+
+// "05/10/2026" ou date Sheet → "2026-10-05" (format attendu par le champ date)
+function toIsoDate(v){
+  v = String(v||'').trim();
+  if(/^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0,10);
+  const m = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  return m ? `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}` : '';
+}
+
+/* ---------- Bloc photos ---------- */
+function photoBlock(saved){
+  const anciennes = parsePhotos(saved.photos);
+  const fsP = document.createElement('div');
+  fsP.className = 'acc open';
+  fsP.innerHTML = `<button class="acc-h"><span class="chev">▶</span><span>5a. Photos</span>
+      <span class="cnt" id="phCnt">0</span></button><div class="acc-c">
+    <p class="help" style="margin-top:6px">Touchez la catégorie puis prenez la photo. Vert = au moins une photo.</p>
+    <div class="phcats">${PHOTO_CATS.map(c=>`<button data-cat="${c}">📷 ${c}</button>`).join('')}</div>
+    <input type="file" id="inPhoto" accept="image/*" capture="environment" multiple style="display:none">
+    <div class="photos" id="phList"></div>
+    ${anciennes.length ? `<p class="help" style="margin-top:10px"><b>Photos déjà envoyées (${anciennes.length})</b> — touchez pour agrandir</p>
+      <div class="photos">` + anciennes.map(p=>
+        `<a class="ph" href="${p.url}" target="_blank" rel="noopener">
+           <img src="${p.thumb}" ${imgSecours(p.thumb2,'remove')}><span class="cap">${p.cat}</span></a>`).join('') +
+      `</div><p class="help">Les nouvelles photos s'ajoutent aux anciennes.</p>` : ''}
+    </div>`;
+  fsP.querySelector('.acc-h').onclick = ()=> fsP.classList.toggle('open');
+  fsP._anciennes = anciennes.map(p=>p.cat);
+  fsP.querySelectorAll('.phcats button').forEach(b=> b.onclick = ()=>{
+    photoCat = b.dataset.cat;
+    document.getElementById('inPhoto').click();
+  });
+  photoBox = fsP;
+  setTimeout(drawPhotos, 0);
+  return fsP;
+}
+let photoCat = 'Autre', photoBox = null;
+
+// Attributs d'une miniature : pas de « referrer » (Google refuse parfois les images
+// appelées depuis un autre site), puis adresse de secours, puis masquage si tout échoue
+function imgSecours(alt, mode){
+  const fin = mode==='hide' ? "this.style.display='none'" : 'this.remove()';
+  return `referrerpolicy="no-referrer" loading="lazy" data-alt="${alt}" ` +
+    `onerror="if(this.dataset.alt){this.src=this.dataset.alt;this.dataset.alt=''}else{${fin}}"`;
+}
+
+/* ---------- Mise à jour dynamique ---------- */
+function getK(k){ const el = document.querySelector(`#ficheBody [data-k="${k}"]`); return el ? el.value : ''; }
+function num(k){ const n = parseFloat(String(getK(k)).replace(',','.')); return isNaN(n) ? null : n; }
+const fr = (n,d)=> n.toLocaleString('fr-FR',{minimumFractionDigits:d, maximumFractionDigits:d});
+
+function calculs(){
+  const L = num('dalle_long'), l = num('dalle_larg');
+  const e = getK('epaisseur');
+  const ep = e==='Autre' ? num('epaisseur_autre') : (e ? parseFloat(e.replace(',','.')) : null);
+  const surf = (L!==null && l!==null) ? L*l : null;
+  const vol  = (surf!==null && ep) ? surf*ep/100 : null;
+  return {
+    surface_m2: surf!==null ? Math.round(surf*100)/100 : '',
+    volume_m3 : vol!==null  ? Math.round(vol*100)/100  : '',
+    perimetre : (L!==null && l!==null) ? 2*(L+l) : null
+  };
+}
+
+function majFiche(){
+  // 1) champs conditionnels
+  document.querySelectorAll('#ficheBody .fw[data-si-k]').forEach(w=>{
+    w.style.display = getK(w.dataset.siK) === w.dataset.siV ? '' : 'none';
+  });
+  // 2) calculs
+  const c = calculs();
+  const s = document.querySelector('[data-calc="surface_m2"]');
+  if(s) s.innerHTML = c.surface_m2!=='' ? `<b>${fr(c.surface_m2,2)} m²</b> (longueur × largeur)` : 'Renseigner longueur et largeur';
+  const v = document.querySelector('[data-calc="volume_m3"]');
+  if(v) v.innerHTML = c.volume_m3!=='' ? `<b>${fr(c.volume_m3,2)} m³</b> (surface × épaisseur ÷ 100)` : 'Renseigner dimensions et épaisseur';
+  const p = document.querySelector('[data-perim]');
+  if(p) p.textContent = c.perimetre!==null
+    ? `Repère : périmètre de la dalle = ${fr(c.perimetre,1)} m (à réduire si un côté s'appuie sur l'existant).`
+    : 'Le périmètre de la dalle s\'affichera ici comme repère.';
+  // 3) compteurs
+  updateCounts();
 }
 
 function takeGps(){
@@ -634,16 +918,17 @@ function takeGps(){
 }
 
 function addPhotos(files){
+  const cat = photoCat;
   [...files].forEach(f=>{
-    if(photos.length >= 6){ toast('6 photos maximum'); return; }
+    if(photos.length >= PHOTO_MAX){ toast(PHOTO_MAX + ' photos maximum par envoi'); return; }
     const img = new Image();
     img.onload = ()=>{
-      const max = 1400;
+      const max = 1400;   // photo réduite à 1400 px de côté : assez pour lire le terrain, léger à envoyer
       const sc = Math.min(1, max/Math.max(img.width, img.height));
       const cv = document.createElement('canvas');
       cv.width = img.width*sc; cv.height = img.height*sc;
       cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
-      photos.push(cv.toDataURL('image/jpeg', 0.72));
+      photos.push({cat, data: cv.toDataURL('image/jpeg', 0.72)});
       drawPhotos();
       URL.revokeObjectURL(img.src);
     };
@@ -654,9 +939,9 @@ function addPhotos(files){
 function updateCounts(){
   document.querySelectorAll('#ficheBody .acc').forEach(acc=>{
     const cnt = acc.querySelector('.cnt');
-    const champs = acc.querySelectorAll('[data-k]');
+    const champs = [...acc.querySelectorAll('[data-k]')].filter(el=> el.closest('.fw').style.display !== 'none');
     if(!cnt || !champs.length) return;
-    const n = [...champs].filter(el=>el.value !== '').length;
+    const n = champs.filter(el=>el.value !== '').length;
     cnt.textContent = n + '/' + champs.length;
     cnt.classList.toggle('full', n === champs.length);
   });
@@ -665,11 +950,19 @@ function updateCounts(){
 function drawPhotos(){
   const box = document.getElementById('phList');
   const c = document.getElementById('phCnt');
-  if(c){ c.textContent = photos.length; c.classList.toggle('full', photos.length > 0); }
+  if(!box) return;
+  const anciennes = photoBox ? photoBox._anciennes : [];
+  if(c){ c.textContent = photos.length + anciennes.length; c.classList.toggle('full', photos.length + anciennes.length > 0); }
+  // bouton de catégorie en vert dès qu'une photo existe (nouvelle ou déjà envoyée)
+  document.querySelectorAll('.phcats button').forEach(b=>{
+    const n = photos.filter(p=>p.cat===b.dataset.cat).length + anciennes.filter(x=>x===b.dataset.cat).length;
+    b.classList.toggle('got', n>0);
+    b.textContent = '📷 ' + b.dataset.cat + (n ? ` (${n})` : '');
+  });
   box.innerHTML = '';
   photos.forEach((p,i)=>{
     const d = document.createElement('div'); d.className='ph';
-    d.innerHTML = `<img src="${p}"><button>×</button>`;
+    d.innerHTML = `<img src="${p.data}"><span class="cap">${p.cat}</span><button>×</button>`;
     d.querySelector('button').onclick = ()=>{ photos.splice(i,1); drawPhotos(); };
     box.append(d);
   });
@@ -677,12 +970,18 @@ function drawPhotos(){
 
 function collect(){
   const o = {};
-  document.querySelectorAll('#ficheBody [data-k]').forEach(el=> o[el.dataset.k] = el.value);
+  document.querySelectorAll('#ficheBody [data-k]').forEach(el=>{
+    // un champ masqué (ex : déblais si pas de décaissement) est envoyé vide
+    o[el.dataset.k] = el.closest('.fw').style.display === 'none' ? '' : el.value;
+  });
+  const c = calculs();
+  o.surface_m2 = c.surface_m2;
+  o.volume_m3  = c.volume_m3;
   o.id        = current.id;
   o.commune   = val(current.row,'commune');
   o.adresse   = val(current.row,'adresse');
   o.type      = current.ty.l;
-  o.travaux   = val(current.row,'travaux');
+  o.travaux   = val(current.row,'travaux') || natureTravaux(current.row);
   o.lat_theo  = current.lat;
   o.lon_theo  = current.lon;
   o.lat_gps   = current.gps ? current.gps.lat : '';
@@ -694,7 +993,8 @@ function collect(){
 async function sendFiche(){
   const data = collect();
   const btn = document.getElementById('btnSend');
-  btn.disabled = true; btn.textContent = 'Envoi…';
+  btn.disabled = true;
+  btn.textContent = photos.length ? `Envoi (${photos.length} photo${photos.length>1?'s':''})…` : 'Envoi…';
   try{
     const r = await fetch(CONFIG.APPS_SCRIPT_URL, {
       method:'POST',
@@ -703,8 +1003,9 @@ async function sendFiche(){
     });
     const j = await r.json();
     if(!j.ok) throw new Error(j.error || 'réponse invalide');
-    releves[data.id] = data;
-    toast('Relevé enregistré dans le Sheet');
+    releves[data.id] = j.releve || data;   // le script renvoie la ligne à jour, avec les liens photos
+    if(j.avertissement) toast('Relevé enregistré — ' + j.avertissement, 8000);
+    else toast('Relevé enregistré dans le Sheet');
     closeFiche(); refresh();
   }catch(e){
     toast('Échec de l\'envoi : ' + e.message + ' — sauvegarde locale conseillée', 6000);
@@ -766,6 +1067,205 @@ function exportGeo(){
 }
 
 /* =======================================================================
+   RAPPORT PDF — un recto-verso A4 par site
+   Principe : on construit les pages en HTML, on les affiche en aperçu,
+   puis l'impression du navigateur « Enregistrer en PDF » fabrique le fichier.
+   ======================================================================= */
+const esc = v => String(v ?? '').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const section = debut => FICHE.find(x=>x.s.startsWith(debut));
+// réponses à mettre en évidence (couleur) dans le rapport
+const ALERTES = {acces_facile:'Non', portance:'Oui', racines:'Oui', pelle:'Oui', decaissement:'Oui', arrete:'Oui'};
+
+function nombre(v){ const n = parseFloat(String(v ?? '').replace(',','.')); return isNaN(n) ? null : n; }
+function frN(v, d){ const n = nombre(v); return n===null ? '' : n.toLocaleString('fr-FR',{maximumFractionDigits:d ?? 2}); }
+function frDate(v){ const i = toIsoDate(v); return i ? i.split('-').reverse().join('/') : esc(v); }
+
+// libellé sans l'unité entre parenthèses + valeur suivie de l'unité
+function ligneKV(it, v){
+  if(v === '' || v === null || v === undefined) return '';
+  let u = (it.l.match(/\(([^)]+)\)\s*$/) || [])[1] || '';
+  if(/nombre/.test(u)) u = '';
+  const txt = (it.t==='num' && nombre(v)!==null) ? frN(v) : esc(v);
+  const al  = ALERTES[it.k] === String(v) ? ' class="al"' : '';
+  return `<div class="r-row"><span>${esc(it.l.replace(/\s*\([^)]*\)\s*$/,''))}</span><b${al}>${txt}${u?' '+esc(u):''}</b></div>`;
+}
+function blocKV(sec, d, deuxCol){
+  const lignes = sec.items.filter(it=>it.t!=='calc' && !(it.si && d[it.si.k]!==it.si.v))
+                          .map(it=>ligneKV(it, d[it.k])).join('');
+  return lignes ? `<div class="r-kv${deuxCol?' c2':''}">${lignes}</div>` : '<p class="r-vide">Non renseigné</p>';
+}
+
+// image IGN (WMS Géoplateforme) centrée sur le point ; demi = demi-largeur au sol en mètres
+function wmsIGN(couche, fmt, lat, lon, demi, w, h){
+  const R = 6378137, x = lon*Math.PI/180*R, y = Math.log(Math.tan(Math.PI/4 + lat*Math.PI/360))*R;
+  const dx = demi/Math.cos(lat*Math.PI/180), dy = dx*h/w;   // correction d'échelle Web Mercator
+  return 'https://data.geopf.fr/wms-r/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&STYLES=' +
+    `&LAYERS=${couche}&FORMAT=${encodeURIComponent(fmt)}&CRS=EPSG:3857` +
+    `&BBOX=${x-dx},${y-dy},${x+dx},${y+dy}&WIDTH=${w}&HEIGHT=${h}`;
+}
+const PIN = `<svg class="pin" viewBox="0 0 24 30"><path d="M12 29s10-10.2 10-17A10 10 0 0 0 2 12c0 6.8 10 17 10 17z"
+  fill="#B91E27" stroke="#fff" stroke-width="2"/><circle cx="12" cy="12" r="3.6" fill="#fff"/></svg>`;
+
+function pagesSite(it){
+  const d = it.d, ph = it.photos;
+  const lat = nombre(d.lat_gps) ?? nombre(d.lat_theo), lon = nombre(d.lon_gps) ?? nombre(d.lon_theo);
+  const diff = d.difficulte || '';
+  const pill = `<span class="r-pill ${esc(diff)}">${esc(diff || 'Non évaluée')}</span>`;
+  const nature = /agrand|extens/i.test(d.travaux) ? 'Agrandissement' : /am[ée]nag/i.test(d.travaux) ? 'Aménagement' : 'Création';
+  const titre = esc(d.adresse || d.id);
+
+  // chiffres clés (surface recalculée si absente)
+  let surf = nombre(d.surface_m2);
+  if(surf===null && nombre(d.dalle_long)!==null && nombre(d.dalle_larg)!==null) surf = nombre(d.dalle_long)*nombre(d.dalle_larg);
+  const ep = d.epaisseur==='Autre' ? (d.epaisseur_autre ? frN(d.epaisseur_autre)+' cm' : '') : (d.epaisseur || '');
+  let vol = nombre(d.volume_m3);
+  const epN = d.epaisseur==='Autre' ? nombre(d.epaisseur_autre) : nombre(String(d.epaisseur||'').replace(/[^\d,.]/g,''));
+  if(vol===null && surf!==null && epN) vol = surf*epN/100;
+  const dims = (d.dalle_long && d.dalle_larg) ? `${frN(d.dalle_long)} × ${frN(d.dalle_larg)} m` : '';
+  const figs = [
+    ['Surface', surf!==null ? frN(surf)+' m²' : '', dims],
+    ['Épaisseur', ep], ['Volume béton', vol!==null ? frN(vol)+' m³' : ''],
+    ['Coffrage', d.coffrage_ml ? frN(d.coffrage_ml)+' m' : ''],
+    ['Distance toupie', d.toupie_distance ? frN(d.toupie_distance)+' m' : ''],
+    ['Goulotte', d.goulotte_ml ? frN(d.goulotte_ml)+' m' : '']
+  ].map(f=>`<div class="r-fig${f[1]?'':' vide'}"><b>${esc(f[1]||'—')}</b><span>${esc(f[0])}${f[2]?' · <i>'+esc(f[2])+'</i>':''}</span></div>`).join('');
+
+  const cartes = (lat!==null && lon!==null) ? `
+    <div class="r-maps">
+      <div class="r-map"><img src="${wmsIGN('ORTHOIMAGERY.ORTHOPHOTOS','image/jpeg',lat,lon,40,1000,620)}"
+        referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('ko')">${PIN}
+        <span class="cap">Vue aérienne IGN · largeur ≈ 80 m</span></div>
+      <div class="r-map"><img src="${wmsIGN('GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2','image/png',lat,lon,350,620,620)}"
+        referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('ko')">${PIN}
+        <span class="cap">Plan de situation · largeur ≈ 700 m</span></div>
+    </div>` : '';
+
+  const pied = n => `<div class="r-foot">
+      <span>NCPA — Direction de la maîtrise des déchets · Reconnaissance terrain dalles béton</span>
+      <span>${esc(d.id)} · ${n}/2</span></div>`;
+
+  const gps = (nombre(d.lat_gps)!==null) ? `GPS relevé sur place : ${frN(d.lat_gps,6)}, ${frN(d.lon_gps,6)}`
+            : (lat!==null ? `Coordonnées : ${frN(lat,6)}, ${frN(lon,6)}` : '');
+  const n = ph.length, g = n<=1 ? 'g1' : n<=2 ? 'g2' : n<=4 ? 'g4' : n<=6 ? 'g6' : 'g9';
+  const photosHtml = n ? `<div class="r-photos ${g}">` + ph.slice(0,9).map(p=>
+      `<figure><img src="${esc(p.src)}" ${p.alt ? imgSecours(esc(p.alt),'hide').replace('loading="lazy" ','') : ''}
+        referrerpolicy="no-referrer"><figcaption>${esc(p.cat)}</figcaption></figure>`).join('') + `</div>`
+      : `<div class="r-nophoto">Aucune photo</div>`;
+
+  return `
+  <section class="r-page">
+    <div class="r-head">
+      <div>
+        <div class="ey">NCPA · Reconnaissance terrain — dalle béton</div>
+        <h1>${titre}</h1>
+        <div class="sub">${esc(d.commune)} · ${esc(d.type)} · ${nature} · ${esc(d.id)}</div>
+      </div>
+      <div class="r-diff"><small>Difficulté</small>${pill}</div>
+    </div>
+    <div class="r-meta">
+      <span>Visite du <b>${frDate(d.date_visite) || '—'}</b></span>
+      <span>Relevé par <b>${esc(d.releveur || '—')}</b></span>
+      <span>Accompagné de <b>${esc(d.accompagnant || '—')}</b></span>
+    </div>
+    ${cartes}
+    <div class="r-figs">${figs}</div>
+    <div class="r-cols">
+      <div><div class="r-h">3. Accès et stationnement de la toupie</div>${blocKV(section('3.'), d)}</div>
+      <div><div class="r-h">4a. Terrain et emprise</div>${blocKV(section('4a.'), d)}</div>
+    </div>
+    ${pied(1)}
+  </section>
+  <section class="r-page">
+    <div class="r-head2"><b>${titre}</b><span>${esc(d.commune)} · ${esc(d.id)}</span>${pill}</div>
+    <div class="r-h">4b. Circulation et riverains</div>${blocKV(section('4b.'), d, true)}
+    <div class="r-h">Observations / remarques importantes</div>
+    ${d.commentaire ? `<div class="r-obs">${esc(d.commentaire)}</div>` : '<p class="r-vide">Aucune observation</p>'}
+    <div class="r-h">Photos (${n})</div>
+    ${photosHtml}
+    <div class="r-foot" style="border-top:none;padding-top:0;margin-top:2mm"><span>${gps}</span>
+      <span>Relevé ${d.horodatage ? 'enregistré le ' + frDate(d.horodatage) : 'non envoyé'} · édité le ${new Date().toLocaleDateString('fr-FR')}</span></div>
+    ${pied(2)}
+  </section>`;
+}
+
+// photos déjà dans Drive (grande taille) + photos prises mais pas encore envoyées
+function photosRapport(d, locales){
+  const drive = parsePhotos(d.photos).map(p=>({cat:p.cat,
+    src: p.thumb.replace('=w400','=w1200'), alt: p.thumb2.replace('sz=w400','sz=w1200')}));
+  return drive.concat((locales||[]).map(p=>({cat:p.cat, src:p.data})));
+}
+
+function ouvrirRapport(items, nomFichier){
+  if(!items.length) return toast('Aucun relevé à mettre en page');
+  const box = document.getElementById('rapport');
+  document.getElementById('rapPages').innerHTML = items.map(pagesSite).join('');
+  box._nom = nomFichier;
+  box.classList.add('show');
+  box.scrollTop = 0;
+  ajusterZoom();
+  suiviImages();
+}
+
+// l'aperçu est réduit pour tenir dans l'écran (le PDF reste en taille réelle)
+function ajusterZoom(){
+  const z = Math.min(1, (document.getElementById('rapport').clientWidth - 16) / 794);
+  document.querySelectorAll('.r-page').forEach(p=> p.style.zoom = z);
+}
+
+function imagesChargees(){
+  const imgs = [...document.querySelectorAll('#rapPages img')];
+  return {imgs, ok: imgs.filter(i=>i.complete).length};
+}
+function suiviImages(){
+  const st = document.getElementById('rapStatut');
+  const maj = ()=>{
+    const {imgs, ok} = imagesChargees();
+    const nb = document.querySelectorAll('.r-page').length/2;
+    st.textContent = `${nb} site${nb>1?'s':''} · ${nb*2} pages` + (ok<imgs.length ? ` · images ${ok}/${imgs.length}…` : ' · prêt');
+  };
+  document.querySelectorAll('#rapPages img').forEach(i=>{ i.addEventListener('load', maj); i.addEventListener('error', maj); });
+  maj();
+}
+
+async function imprimerRapport(){
+  const {imgs} = imagesChargees();
+  // attend que les images soient là (15 s maximum) pour ne pas imprimer des cadres vides
+  await Promise.race([
+    Promise.all(imgs.map(i=> i.complete ? 0 : new Promise(r=>{ i.addEventListener('load',r,{once:true}); i.addEventListener('error',r,{once:true}); }))),
+    new Promise(r=>setTimeout(r, 15000))
+  ]);
+  const t = document.title;
+  document.title = document.getElementById('rapport')._nom;   // devient le nom proposé pour le PDF
+  window.print();
+  setTimeout(()=> document.title = t, 1500);
+}
+
+const nomPropre = s => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9-]+/g,'_');
+
+// depuis la fiche ouverte : ce qui est saisi à l'écran, même pas encore envoyé
+function rapportFiche(){
+  const d = Object.assign({}, releves[current.id] || {}, collect());
+  d.photos = (releves[current.id] || {}).photos || '';
+  if(!releves[current.id]) d.horodatage = '';
+  ouvrirRapport([{d, photos: photosRapport(d, photos)}], `Releve_${nomPropre(d.id)}_${nomPropre(d.commune)}`);
+}
+
+// depuis le panneau : tous les sites relevés actuellement affichés (filtres commune / type)
+function rapportGroupe(){
+  const liste = Object.values(markers).map(m=>m._data).filter(x=>releves[x.id])
+    .map(x=>{
+      const d = Object.assign({id:x.id, commune:val(x.row,'commune'), adresse:val(x.row,'adresse'),
+        type:x.ty.l, travaux:val(x.row,'travaux'), lat_theo:x.lat, lon_theo:x.lon}, releves[x.id]);
+      return {d, photos: photosRapport(d)};
+    })
+    .sort((a,b)=> (a.d.commune+a.d.adresse).localeCompare(b.d.commune+b.d.adresse, 'fr'));
+  if(!liste.length) return toast('Aucun site relevé parmi les sites affichés');
+  const fc = document.getElementById('fCommune').value;
+  if(!fc && liste.length > 15 && !confirm(`Aucune commune filtrée : générer ${liste.length} rapports (${liste.length*2} pages) ?`)) return;
+  ouvrirRapport(liste, `Releves_${nomPropre(fc || 'toutes_communes')}_${new Date().toISOString().slice(0,10)}`);
+}
+
+/* =======================================================================
    ÉVÉNEMENTS
    ======================================================================= */
 // tiroir latéral (mobile)
@@ -803,7 +1303,7 @@ document.getElementById('fileLocal').onchange = e=>{
   rd.readAsArrayBuffer(f);
 };
 document.getElementById('fCommune').onchange = refresh;
-document.getElementById('fEtat').onchange = refresh;
+document.querySelectorAll('#fEtat input').forEach(i=> i.onchange = refresh);
 document.getElementById('ficheClose').onclick = closeFiche;
 document.getElementById('btnSend').onclick = sendFiche;
 document.getElementById('btnJson').onclick = ()=>{
@@ -814,6 +1314,11 @@ document.getElementById('btnJson').onclick = ()=>{
 };
 document.getElementById('expCsv').onclick = exportCsv;
 document.getElementById('expGeo').onclick = exportGeo;
+document.getElementById('expPdf').onclick = ()=>{ if(window.innerWidth <= 860) togglePanel(false); rapportGroupe(); };
+document.getElementById('btnPdf').onclick = rapportFiche;
+document.getElementById('rapPrint').onclick = imprimerRapport;
+document.getElementById('rapClose').onclick = ()=> document.getElementById('rapport').classList.remove('show');
+window.addEventListener('resize', ()=>{ if(document.getElementById('rapport').classList.contains('show')) ajusterZoom(); });
 
 loadReleves();
 loadFromUrl(CONFIG.SOURCE_XLSX);
