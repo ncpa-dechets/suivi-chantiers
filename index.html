@@ -127,6 +127,19 @@ legend{font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var
   border-radius:50%; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.3); font-size:19px; padding:0;
 }
 
+/* barre de filtres rapides sur la carte */
+#qf{position:absolute; left:10px; right:68px; bottom:22px; z-index:800; display:flex; gap:6px;
+  overflow-x:auto; scrollbar-width:none; padding:2px}
+#qf::-webkit-scrollbar{display:none}
+#qf button{flex:0 0 auto; display:flex; align-items:center; gap:6px; min-height:38px; padding:6px 12px;
+  border-radius:20px; background:#fff; border:1px solid var(--bord); box-shadow:0 1px 5px rgba(0,0,0,.25);
+  font-size:13.5px; font-weight:600; white-space:nowrap; color:#22262b}
+#qf button .d{width:12px; height:12px; border-radius:50%; flex:0 0 auto}
+#qf button.off{opacity:.5; box-shadow:none; text-decoration:line-through}
+#qf button.off .d{background:transparent !important; border:2px solid #9aa0a6}
+#qf .sep{flex:0 0 1px; background:rgba(0,0,0,.18); margin:6px 2px}
+#qf .n{font-weight:400; color:var(--gris)}
+
 .photos{display:flex; flex-wrap:wrap; gap:6px; margin-top:7px}
 .ph{position:relative; width:76px; height:76px; border-radius:6px; overflow:hidden; border:1px solid var(--bord)}
 .ph img{width:100%; height:100%; object-fit:cover}
@@ -304,11 +317,10 @@ a.ph{display:block; text-decoration:none; color:var(--gris); text-align:center; 
       <label class="f">Type d'équipement</label>
       <div id="fTypes"></div>
       <label class="f">État du relevé</label>
-      <select id="fEtat">
-        <option value="">Tous</option>
-        <option value="todo">À relever</option>
-        <option value="done">Relevé fait</option>
-      </select>
+      <div id="fEtat">
+        <label class="chk"><input type="checkbox" value="done" checked> Relevés faits</label>
+        <label class="chk"><input type="checkbox" value="todo" checked> À relever</label>
+      </div>
     </div>
 
     <div class="sec">
@@ -345,6 +357,7 @@ a.ph{display:block; text-decoration:none; color:var(--gris); text-align:center; 
   <div id="mapwrap">
     <div id="map"></div>
     <button id="btnLoc" title="Me localiser">◎</button>
+    <div id="qf"></div>
   </div>
 </div>
 <div id="overlay"></div>
@@ -598,8 +611,10 @@ function parsePhotos(txt){
 function refresh(){
   layer.clearLayers(); markers = {};
   const fc = document.getElementById('fCommune').value;
-  const fe = document.getElementById('fEtat').value;
   const actifs = [...document.querySelectorAll('#fTypes input:checked')].map(i=>i.value);
+  const voirFaits  = document.querySelector('#fEtat input[value=done]').checked;
+  const voirAFaire = document.querySelector('#fEtat input[value=todo]').checked;
+  const compte = {};   // nombre de sites par pastille (commune filtrée)
 
   let n=0, done=0, bloq=0;
   const bounds = [];
@@ -614,9 +629,11 @@ function refresh(){
     const rv = releves[id];
 
     if(fc && val(row,'commune') !== fc) return;
-    if(actifs.length && !actifs.includes(ty.k)) return;
-    if(fe === 'done' && !rv) return;
-    if(fe === 'todo' && rv) return;
+    compte[ty.k] = (compte[ty.k]||0) + 1;
+    compte[rv ? 'done' : 'todo'] = (compte[rv ? 'done' : 'todo']||0) + 1;
+    if(!actifs.includes(ty.k)) return;      // tout décoché = rien n'est affiché
+    if(rv && !voirFaits) return;
+    if(!rv && !voirAFaire) return;
 
     n++;
     if(rv) done++;
@@ -647,6 +664,46 @@ function refresh(){
 
   if(bounds.length && !refresh._zoomed){ map.fitBounds(bounds, {padding:[30,30]}); refresh._zoomed = true; }
   fillCommunes();
+  majPastilles(compte);
+}
+
+/* ---------- Pastilles de filtre sur la carte ----------
+   Chaque pastille coche/décoche la case correspondante du panneau :
+   panneau et carte restent donc toujours d'accord. */
+const PASTILLES = [
+  {k:'pdr',    l:'PDR',            box:'#fTypes', c:'--pdr'},
+  {k:'verre',  l:'Verre',          box:'#fTypes', c:'--verre'},
+  {k:'carton', l:'Cartons',        box:'#fTypes', c:'--carton'},
+  {k:'autre',  l:'Autre',          box:'#fTypes', c:'--autre'},
+  {sep:true},
+  {k:'done',   l:'✓ Faits',        box:'#fEtat'},
+  {k:'todo',   l:'○ À faire',      box:'#fEtat'}
+];
+(function creerPastilles(){
+  const bar = document.getElementById('qf');
+  PASTILLES.forEach(p=>{
+    if(p.sep){ bar.insertAdjacentHTML('beforeend','<span class="sep"></span>'); return; }
+    const b = document.createElement('button');
+    b.dataset.k = p.k;
+    b.innerHTML = (p.c ? `<span class="d" style="background:var(${p.c})"></span>` : '') +
+                  `${p.l} <span class="n"></span>`;
+    b.onclick = ()=>{
+      const cb = document.querySelector(`${p.box} input[value=${p.k}]`);
+      cb.checked = !cb.checked;
+      refresh();
+    };
+    bar.append(b);
+  });
+})();
+function majPastilles(compte){
+  PASTILLES.filter(p=>!p.sep).forEach(p=>{
+    const b  = document.querySelector(`#qf button[data-k=${p.k}]`);
+    const cb = document.querySelector(`${p.box} input[value=${p.k}]`);
+    b.classList.toggle('off', !cb.checked);
+    b.querySelector('.n').textContent = compte[p.k] || 0;
+    // une catégorie absente des données (ex. aucun « Autre ») n'encombre pas la barre
+    b.style.display = (p.box==='#fTypes' && !compte[p.k] && cb.checked) ? 'none' : '';
+  });
 }
 
 function popupHtml(d){
@@ -1246,7 +1303,7 @@ document.getElementById('fileLocal').onchange = e=>{
   rd.readAsArrayBuffer(f);
 };
 document.getElementById('fCommune').onchange = refresh;
-document.getElementById('fEtat').onchange = refresh;
+document.querySelectorAll('#fEtat input').forEach(i=> i.onchange = refresh);
 document.getElementById('ficheClose').onclick = closeFiche;
 document.getElementById('btnSend').onclick = sendFiche;
 document.getElementById('btnJson').onclick = ()=>{
