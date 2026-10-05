@@ -58,7 +58,7 @@ header h1{margin:1px 0 0; font-size:17px; font-weight:600}
 label.f{display:block; font-size:12px; color:var(--gris); margin:6px 0 2px}
 /* 16px : en dessous, iOS zoome automatiquement à chaque clic dans un champ */
 input,select,textarea,button{font-family:inherit; font-size:16px}
-input[type=text],input[type=number],select,textarea{
+input[type=text],input[type=number],input[type=date],select,textarea{
   width:100%; padding:11px 10px; border:1px solid var(--bord); border-radius:6px; background:#fff;
   min-height:44px; -webkit-appearance:none; appearance:none;
 }
@@ -130,7 +130,20 @@ legend{font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var
 .photos{display:flex; flex-wrap:wrap; gap:6px; margin-top:7px}
 .ph{position:relative; width:76px; height:76px; border-radius:6px; overflow:hidden; border:1px solid var(--bord)}
 .ph img{width:100%; height:100%; object-fit:cover}
-.ph button{position:absolute; top:1px; right:1px; background:rgba(0,0,0,.6); color:#fff; border:none; border-radius:4px; padding:1px 6px; font-size:12px}
+.ph button{position:absolute; top:1px; right:1px; background:rgba(0,0,0,.6); color:#fff; border:none; border-radius:4px; padding:1px 6px; font-size:12px; min-height:0}
+.ph .cap{position:absolute; left:0; right:0; bottom:0; background:rgba(0,0,0,.6); color:#fff; font-size:10px; line-height:1.2; padding:2px 3px; text-align:center}
+a.ph{display:block; text-decoration:none; color:var(--gris); text-align:center; line-height:76px}
+
+/* boutons photo par catégorie (= cases « Photos prises » de la fiche papier) */
+.phcats{display:grid; grid-template-columns:1fr 1fr; gap:6px}
+.phcats button{font-size:14px; padding:10px 6px; min-height:46px}
+.phcats button.got{border:2px solid var(--ok); color:var(--ok)}
+
+/* résultats calculés automatiquement */
+.calc{background:var(--fond); border:1px dashed var(--bord); border-radius:6px; padding:9px 10px; font-size:14px}
+.calc b{font-size:16px}
+.pop .thumbs{display:flex; gap:4px; margin-top:6px}
+.pop .thumbs img{width:54px; height:54px; object-fit:cover; border-radius:4px; border:1px solid var(--bord)}
 
 .badge{display:inline-block; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:700; color:#fff}
 .b-simple{background:var(--ok)} .b-vig{background:var(--warn)} .b-cplx{background:#B4451E} .b-bloq{background:var(--danger)}
@@ -293,45 +306,69 @@ const CONFIG = {
 };
 
 /* =======================================================================
-   SCHÉMA DE LA FICHE TERRAIN
+   SCHÉMA DE LA FICHE TERRAIN — calé sur la fiche Word « Reconnaissance terrain »
    Pour ajouter une question : copier une ligne et l'adapter.
-   types : 'select' | 'num' | 'text' | 'textarea' | 'bool'
+   types : 'select' | 'num' | 'text' | 'textarea' | 'bool' | 'date' | 'calc'
+   si:{k,v}  → le champ n'apparaît que si le champ k vaut v
+   'calc'    → résultat calculé automatiquement (non saisi)
    ======================================================================= */
 const FICHE = [
- {s:"Accès et stationnement de la toupie", items:[
-   {k:"toupie_distance", l:"Distance toupie → dalle (m)", t:"num", help:"Au-delà de ~4 m la goulotte ne suffit plus."},
-   {k:"toupie_moyen", l:"Moyen d'acheminement du béton", t:"select", o:["Goulotte directe","Goulotte + rallonges","Brouettage","Tapis","Pompe à béton","À déterminer"]},
-   {k:"toupie_stationnement", l:"Où stationne la toupie", t:"text", help:"Ex : sur la chaussée devant le n°12, ou sur le parking."},
-   {k:"voie_largeur", l:"Largeur d'accès utile (m)", t:"num"},
-   {k:"hauteur_libre", l:"Contrainte de hauteur au-dessus de l'accès", t:"select", o:["Aucune","Branches d'arbres","Lignes aériennes","Porche / passage couvert","Autre"]},
-   {k:"portance", l:"Doute sur la portance ou le tonnage admis", t:"bool", help:"Pont, trottoir, place engazonnée, voie limitée en tonnage."},
-   {k:"lavage", l:"Lavage de goulotte possible sur place", t:"bool"}
+ {s:"Visite", items:[
+   {k:"date_visite", l:"Date de visite", t:"date"},
+   {k:"releveur", l:"Relevé par", t:"text"},
+   {k:"accompagnant", l:"Accompagné de", t:"text"}
  ]},
- {s:"Terrain et emprise", items:[
-   {k:"pente", l:"Pente du terrain", t:"select", o:["Nulle ou négligeable","Faible (< 3 %)","Marquée (3 à 8 %)","Forte (> 8 %)"]},
-   {k:"pente_sens", l:"Sens d'écoulement de l'eau", t:"select", o:["Vers la chaussée","À l'opposé de la chaussée","Vers une propriété riveraine","Vers un avaloir / grille","Indéterminé"]},
-   {k:"sol", l:"Nature du sol existant", t:"select", o:["Enrobé","Terre / herbe","Grave ou stabilisé","Pavés / dallage","Béton existant","Mixte"]},
-   {k:"decaissement", l:"Décaissement nécessaire", t:"bool"},
-   {k:"deblais_m3", l:"Volume de déblais estimé (m³)", t:"num"},
-   {k:"deblais_exutoire", l:"Destination des déblais", t:"text"},
+ {s:"2. Dalle et béton", items:[
+   {k:"dalle_long", l:"Longueur à couler (m)", t:"num"},
+   {k:"dalle_larg", l:"Largeur à couler (m)", t:"num"},
+   {k:"surface_m2", l:"Surface", t:"calc"},
+   {k:"epaisseur", l:"Épaisseur", t:"select", o:["10 cm","12,5 cm","Autre"]},
+   {k:"epaisseur_autre", l:"Autre épaisseur (cm)", t:"num", si:{k:"epaisseur", v:"Autre"}},
+   {k:"volume_m3", l:"Volume béton à prévoir", t:"calc"},
+   {k:"coffrage_ml", l:"Longueur totale de planches de coffrage (m)", t:"num", help:"perimetre"}
+ ]},
+ {s:"3. Accès et stationnement de la toupie", items:[
+   {k:"acces_facile", l:"Accès facile pour la toupie", t:"bool"},
+   {k:"acces_precisions", l:"Précisions : état de la chaussée, voirie", t:"text"},
+   {k:"manoeuvres", l:"Manœuvres à prévoir", t:"text", help:"Possibilité de marche arrière, de demi-tour…"},
+   {k:"toupie_distance", l:"Distance toupie → dalle estimée (m)", t:"num"},
+   {k:"toupie_stationnement", l:"Stationnement de la toupie", t:"text", help:"Ex : chaussée devant le n°12, parking…"},
+   {k:"voie_largeur", l:"Largeur d'accès disponible (m)", t:"num"},
+   {k:"hauteur_libre", l:"Contrainte de hauteur", t:"select", o:["Aucune","Branches","Lignes aériennes","Porche","Autre"]},
+   {k:"toupie_moyen", l:"Acheminement du béton", t:"select", o:["Goulotte directe","Goulotte + rallonges","Brouettage","À déterminer"]},
+   {k:"goulotte_ml", l:"Longueur de goulotte à prévoir (m)", t:"num", help:"Depuis la position de la toupie jusqu'à la dalle."},
+   {k:"portance", l:"Doute portance / tonnage", t:"bool", help:"Pont, trottoir, espace engazonné, voie limitée."}
+ ]},
+ {s:"4a. Terrain et emprise", items:[
+   {k:"pente", l:"Pente du terrain", t:"select", o:["Nulle","Faible (< 3 %)","Marquée (3 à 8 %)","Forte (> 8 %)"]},
+   {k:"pente_sens", l:"Sens d'écoulement de l'eau", t:"select", o:["Vers la chaussée","Opposé à la chaussée","Vers un riverain","Vers un avaloir","Indéterminé"]},
+   {k:"sol", l:"Nature du sol existant", t:"select", o:["Enrobé","Terre / herbe","Grave / stabilisé","Pavés","Béton existant","Mixte"]},
+   {k:"sol_precisions", l:"Précisions sur le sol", t:"text"},
+   {k:"decaissement", l:"Décaissement / déblais", t:"bool"},
+   {k:"deblais_m3", l:"Volume de déblais (m³)", t:"num", si:{k:"decaissement", v:"Oui"}},
+   {k:"deblais_exutoire", l:"Destination des déblais", t:"text", si:{k:"decaissement", v:"Oui"}},
+   {k:"pelle", l:"Pelle nécessaire", t:"bool"},
    {k:"racines", l:"Arbres ou racines dans l'emprise", t:"bool"},
-   {k:"niveau", l:"Raccordement de niveau à traiter", t:"select", o:["Aucun","Bordure / trottoir","Caniveau","Bordure à créer","Autre"]}
+   {k:"niveau", l:"Raccordement de niveau", t:"select", o:["Aucun","Bordure / trottoir","Caniveau","Bordure à créer","Autre"]}
  ]},
- {s:"Circulation et riverains", items:[
-   {k:"voie_statut", l:"Statut de la voie", t:"select", o:["Voie communale","Route départementale","Parking / domaine privé communal","Autre"], help:"Départementale = permission de voirie à demander au CD14."},
-   {k:"sens_unique", l:"Voie en sens unique", t:"bool"},
-   {k:"places_neutraliser", l:"Places de stationnement à neutraliser", t:"num"},
-   {k:"arrete", l:"Arrêté municipal nécessaire", t:"bool", help:"À anticiper : délai côté commune."},
-   {k:"circulation_mesure", l:"Mesure de circulation à prévoir", t:"select", o:["Aucune","Signalisation simple","Alternat manuel","Alternat par feux","Déviation piétonne PMR","Fermeture de voie"]},
-   {k:"riverains", l:"Riverains ou commerces impactés", t:"text"},
-   {k:"fenetre", l:"Fenêtre d'intervention conseillée", t:"select", o:["Indifférent","Hors saison touristique","Hors jour de marché","Hors période scolaire","Précisé en commentaire"]}
+ {s:"4b. Circulation et riverains", items:[
+   {k:"voie_statut", l:"Statut de la voie", t:"select", o:["Voie communale","Route départementale","Parking / domaine communal","Autre"], help:"Départementale = permission de voirie CD14."},
+   {k:"sens_unique", l:"Sens unique", t:"bool"},
+   {k:"places_neutraliser", l:"Places de stationnement à neutraliser (nombre)", t:"num"},
+   {k:"arrete", l:"Arrêté municipal nécessaire", t:"bool", help:"Délai à anticiper côté commune."},
+   {k:"circulation_mesure", l:"Mesure de circulation à prendre", t:"select", o:["Aucune","Signalisation simple","Alternat manuel","Déviation piétonne","Fermeture temporaire de voie"]},
+   {k:"riverains", l:"Riverains / commerces impactés", t:"text"},
+   {k:"frequentation", l:"Fréquentation juste après coulage problématique ?", t:"text", help:"Ex : sortie d'école, marché, parking très utilisé…"}
  ]},
- {s:"Synthèse", items:[
-   {k:"difficulte", l:"Niveau de difficulté du chantier", t:"select", o:["Simple","Vigilance","Complexe","Bloquant"]},
-   {k:"commentaire", l:"Observations libres", t:"textarea"},
-   {k:"releveur", l:"Relevé effectué par", t:"text"}
+ {s:"5b. Synthèse", items:[
+   {k:"difficulte", l:"Niveau de difficulté", t:"select", o:["Simple","Vigilance","Complexe","Bloquant"]},
+   {k:"commentaire", l:"Observations / remarques importantes", t:"textarea", help:"Si le niveau n'est pas « Simple » : décrire brièvement le ou les problèmes à anticiper."}
  ]}
 ];
+
+// catégories de photos = cases « Photos prises » de la fiche papier
+const PHOTO_CATS = ["Vue d'ensemble","Accès toupie","Pente","Obstacles / réseaux","Autre"];
+const PHOTO_MAX  = 8;
 
 /* =======================================================================
    ÉTAT
@@ -446,6 +483,27 @@ function typeOf(row){
 }
 
 function isAgrandissement(row){ return /agrand|extens/i.test(val(row,'travaux')); }
+// Création ex nihilo / Agrandissement / Aménagement (dalle présente, claustra à ajouter)
+function natureTravaux(row){
+  const t = val(row,'travaux');
+  if(/agrand|extens/i.test(t)) return 'agrandissement';
+  if(/am[ée]nag/i.test(t))     return 'aménagement';
+  return 'création';
+}
+
+// Lit la colonne « photos » du Sheet : une ligne par photo « Catégorie : lien »
+// (l'ancien format « lien | lien » reste lisible)
+function parsePhotos(txt){
+  return String(txt||'').split(/\n|\|/).map(x=>x.trim()).filter(Boolean).map(x=>{
+    const url = (x.match(/https?:\/\/\S+/)||[])[0] || '';
+    const cat = x.replace(url,'').replace(/[:\s]+$/,'').trim() || 'Photo';
+    const id  = (url.match(/\/d\/([^\/?]+)/) || url.match(/[?&]id=([^&]+)/) || [])[1];
+    // 2 adresses de miniature Google : si la 1re échoue, la page essaie la 2de
+    return {cat, url,
+      thumb : id ? `https://lh3.googleusercontent.com/d/${id}=w400` : '',
+      thumb2: id ? `https://drive.google.com/thumbnail?id=${id}&sz=w400` : ''};
+  }).filter(p=>p.url);
+}
 
 function refresh(){
   layer.clearLayers(); markers = {};
@@ -504,9 +562,14 @@ function refresh(){
 function popupHtml(d){
   const rv = releves[d.id];
   const b = rv ? `<span class="badge ${badgeCls(rv.difficulte)}">${rv.difficulte||'Relevé fait'}</span>` : '';
+  const ph = rv ? parsePhotos(rv.photos) : [];
+  const th = ph.length ? `<div class="thumbs">` + ph.slice(0,4).map(p=>
+      `<img src="${p.thumb}" title="${p.cat}" ${imgSecours(p.thumb2,'hide')}>`).join('') +
+      `</div><span class="l">📷 ${ph.length} photo(s)</span><br>` : '';
   return `<div class="pop">
     <b>${val(d.row,'adresse') || d.id}</b> ${b}<br>
-    <span class="l">${val(d.row,'commune')} — ${d.ty.l}${isAgrandissement(d.row)?' (agrandissement)':''}</span><br>
+    <span class="l">${val(d.row,'commune')} — ${d.ty.l} (${natureTravaux(d.row)})</span><br>
+    ${th}
     <button style="margin-top:6px" onclick="void 0">Ouvrir la fiche</button>
   </div>`;
 }
@@ -539,7 +602,7 @@ function openFiche(d){
   current = d;
   photos = [];
   const saved = releves[d.id] || {};
-  document.getElementById('ficheType').textContent = d.ty.l + (isAgrandissement(d.row)?' — agrandissement':' — création');
+  document.getElementById('ficheType').textContent = d.ty.l + ' — ' + natureTravaux(d.row);
   document.getElementById('ficheTitre').textContent = val(d.row,'adresse') || d.id;
   document.getElementById('ficheSub').textContent =
     `${val(d.row,'commune')} · ${d.id} · ${d.lat.toFixed(6)}, ${d.lon.toFixed(6)}`;
@@ -555,10 +618,11 @@ function openFiche(d){
   body.append(fsGps);
 
   FICHE.forEach((sec, si)=>{
+    const nbSaisis = sec.items.filter(it=>it.t!=='calc').length;
     const fs = document.createElement('div');
-    fs.className = 'acc' + (si===0 ? ' open' : '');
+    fs.className = 'acc' + (si<=1 ? ' open' : '');
     fs.innerHTML = `<button class="acc-h"><span class="chev">▶</span>
-      <span>${sec.s}</span><span class="cnt">0/${sec.items.length}</span></button>`;
+      <span>${sec.s}</span><span class="cnt">0/${nbSaisis}</span></button>`;
     const cont = document.createElement('div');
     cont.className = 'acc-c';
     fs.append(cont);
@@ -566,11 +630,17 @@ function openFiche(d){
 
     sec.items.forEach(it=>{
       const wrap = document.createElement('div');
-      const v = saved[it.k] ?? '';
+      wrap.className = 'fw';
+      if(it.si){ wrap.dataset.siK = it.si.k; wrap.dataset.siV = it.si.v; }
+      let v = saved[it.k] ?? '';
       let ctrl;
-      if(it.t==='select'){
+      if(it.t==='calc'){
+        ctrl = `<div class="calc" data-calc="${it.k}">—</div>`;
+      } else if(it.t==='select'){
+        // une ancienne valeur absente de la liste est conservée (pas de perte de données)
+        const opts = it.o.includes(v) || v==='' ? it.o : it.o.concat([v]);
         ctrl = `<select data-k="${it.k}"><option value="">—</option>` +
-               it.o.map(o=>`<option ${o===v?'selected':''}>${o}</option>`).join('') + `</select>`;
+               opts.map(o=>`<option ${o===v?'selected':''}>${o}</option>`).join('') + `</select>`;
       } else if(it.t==='bool'){
         ctrl = `<select data-k="${it.k}"><option value="">—</option>
                 <option ${v==='Oui'?'selected':''}>Oui</option>
@@ -579,48 +649,115 @@ function openFiche(d){
         ctrl = `<textarea data-k="${it.k}">${v}</textarea>`;
       } else if(it.t==='num'){
         ctrl = `<input type="number" step="any" inputmode="decimal" data-k="${it.k}" value="${v}">`;
+      } else if(it.t==='date'){
+        ctrl = `<input type="date" data-k="${it.k}" value="${toIsoDate(v) || new Date().toISOString().slice(0,10)}">`;
       } else {
-        ctrl = `<input type="text" data-k="${it.k}" value="${v}">`;
+        ctrl = `<input type="text" data-k="${it.k}" value="${String(v).replace(/"/g,'&quot;')}">`;
       }
-      wrap.innerHTML = `<label class="f">${it.l}</label>${ctrl}` + (it.help?`<p class="help">${it.help}</p>`:'');
+      const help = it.help==='perimetre' ? `<p class="help" data-perim>—</p>` : (it.help?`<p class="help">${it.help}</p>`:'');
+      wrap.innerHTML = `<label class="f">${it.l}</label>${ctrl}${help}`;
       cont.append(wrap);
     });
     body.append(fs);
+
+    // le bloc photos se place juste avant la synthèse, comme sur la fiche papier
+    if(si === FICHE.length-2) body.append(photoBlock(saved));
   });
 
-  // compteur de champs renseignés par section
-  body.querySelectorAll('[data-k]').forEach(el=> el.addEventListener('change', updateCounts));
-  updateCounts();
+  // à chaque saisie : champs conditionnels, calculs, compteurs
+  body.querySelectorAll('[data-k]').forEach(el=>{
+    el.addEventListener('input', majFiche);
+    el.addEventListener('change', majFiche);
+  });
+  majFiche();
 
-  // photos
-  const fsP = document.createElement('div');
-  fsP.className = 'acc open';
-  fsP.innerHTML = `<button class="acc-h"><span class="chev">▶</span><span>Photos</span>
-      <span class="cnt" id="phCnt">0</span></button><div class="acc-c">
-    <button class="wide" id="btnPhoto">Ajouter des photos</button>
-    <input type="file" id="inPhoto" accept="image/*" capture="environment" multiple style="display:none">
-    <p class="help">Vue d'ensemble, accès toupie, pente, réseaux visibles. Max 6, compressées automatiquement.</p>
-    <div class="photos" id="phList"></div>
-    ${saved.photos ? '<p class="help" style="margin-top:9px">Photos du relevé précédent</p><div class="photos">' +
-      String(saved.photos).split('|').map(u=>u.trim()).filter(Boolean).map(u=>{
-        const id = (u.match(/\/d\/([^\/]+)/) || [])[1];
-        return `<a class="ph" href="${u}" target="_blank">` +
-          (id ? `<img src="https://drive.google.com/thumbnail?id=${id}&sz=w200">` : '📷') + `</a>`;
-      }).join('') +
-      '</div><p class="help">Les nouvelles photos s\'ajoutent, elles ne remplacent pas les anciennes.</p>' : ''}
-    </div>`;
-  body.append(fsP);
-  fsP.querySelector('.acc-h').onclick = e=>{
-    if(e.target.closest('#btnPhoto')) return;
-    fsP.classList.toggle('open');
-  };
-
-  document.getElementById('btnPhoto').onclick = ()=>document.getElementById('inPhoto').click();
-  document.getElementById('inPhoto').onchange = e=>addPhotos(e.target.files);
+  document.getElementById('inPhoto').onchange = e=>{ addPhotos(e.target.files); e.target.value=''; };
   document.getElementById('btnGps').onclick = takeGps;
 
   document.getElementById('fiche').classList.add('open');
   body.scrollTop = 0;
+}
+
+// "05/10/2026" ou date Sheet → "2026-10-05" (format attendu par le champ date)
+function toIsoDate(v){
+  v = String(v||'').trim();
+  if(/^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0,10);
+  const m = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  return m ? `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}` : '';
+}
+
+/* ---------- Bloc photos ---------- */
+function photoBlock(saved){
+  const anciennes = parsePhotos(saved.photos);
+  const fsP = document.createElement('div');
+  fsP.className = 'acc open';
+  fsP.innerHTML = `<button class="acc-h"><span class="chev">▶</span><span>5a. Photos</span>
+      <span class="cnt" id="phCnt">0</span></button><div class="acc-c">
+    <p class="help" style="margin-top:6px">Touchez la catégorie puis prenez la photo. Vert = au moins une photo.</p>
+    <div class="phcats">${PHOTO_CATS.map(c=>`<button data-cat="${c}">📷 ${c}</button>`).join('')}</div>
+    <input type="file" id="inPhoto" accept="image/*" capture="environment" multiple style="display:none">
+    <div class="photos" id="phList"></div>
+    ${anciennes.length ? `<p class="help" style="margin-top:10px"><b>Photos déjà envoyées (${anciennes.length})</b> — touchez pour agrandir</p>
+      <div class="photos">` + anciennes.map(p=>
+        `<a class="ph" href="${p.url}" target="_blank" rel="noopener">
+           <img src="${p.thumb}" ${imgSecours(p.thumb2,'remove')}><span class="cap">${p.cat}</span></a>`).join('') +
+      `</div><p class="help">Les nouvelles photos s'ajoutent aux anciennes.</p>` : ''}
+    </div>`;
+  fsP.querySelector('.acc-h').onclick = ()=> fsP.classList.toggle('open');
+  fsP._anciennes = anciennes.map(p=>p.cat);
+  fsP.querySelectorAll('.phcats button').forEach(b=> b.onclick = ()=>{
+    photoCat = b.dataset.cat;
+    document.getElementById('inPhoto').click();
+  });
+  photoBox = fsP;
+  setTimeout(drawPhotos, 0);
+  return fsP;
+}
+let photoCat = 'Autre', photoBox = null;
+
+// Attributs d'une miniature : pas de « referrer » (Google refuse parfois les images
+// appelées depuis un autre site), puis adresse de secours, puis masquage si tout échoue
+function imgSecours(alt, mode){
+  const fin = mode==='hide' ? "this.style.display='none'" : 'this.remove()';
+  return `referrerpolicy="no-referrer" loading="lazy" data-alt="${alt}" ` +
+    `onerror="if(this.dataset.alt){this.src=this.dataset.alt;this.dataset.alt=''}else{${fin}}"`;
+}
+
+/* ---------- Mise à jour dynamique ---------- */
+function getK(k){ const el = document.querySelector(`#ficheBody [data-k="${k}"]`); return el ? el.value : ''; }
+function num(k){ const n = parseFloat(String(getK(k)).replace(',','.')); return isNaN(n) ? null : n; }
+const fr = (n,d)=> n.toLocaleString('fr-FR',{minimumFractionDigits:d, maximumFractionDigits:d});
+
+function calculs(){
+  const L = num('dalle_long'), l = num('dalle_larg');
+  const e = getK('epaisseur');
+  const ep = e==='Autre' ? num('epaisseur_autre') : (e ? parseFloat(e.replace(',','.')) : null);
+  const surf = (L!==null && l!==null) ? L*l : null;
+  const vol  = (surf!==null && ep) ? surf*ep/100 : null;
+  return {
+    surface_m2: surf!==null ? Math.round(surf*100)/100 : '',
+    volume_m3 : vol!==null  ? Math.round(vol*100)/100  : '',
+    perimetre : (L!==null && l!==null) ? 2*(L+l) : null
+  };
+}
+
+function majFiche(){
+  // 1) champs conditionnels
+  document.querySelectorAll('#ficheBody .fw[data-si-k]').forEach(w=>{
+    w.style.display = getK(w.dataset.siK) === w.dataset.siV ? '' : 'none';
+  });
+  // 2) calculs
+  const c = calculs();
+  const s = document.querySelector('[data-calc="surface_m2"]');
+  if(s) s.innerHTML = c.surface_m2!=='' ? `<b>${fr(c.surface_m2,2)} m²</b> (longueur × largeur)` : 'Renseigner longueur et largeur';
+  const v = document.querySelector('[data-calc="volume_m3"]');
+  if(v) v.innerHTML = c.volume_m3!=='' ? `<b>${fr(c.volume_m3,2)} m³</b> (surface × épaisseur ÷ 100)` : 'Renseigner dimensions et épaisseur';
+  const p = document.querySelector('[data-perim]');
+  if(p) p.textContent = c.perimetre!==null
+    ? `Repère : périmètre de la dalle = ${fr(c.perimetre,1)} m (à réduire si un côté s'appuie sur l'existant).`
+    : 'Le périmètre de la dalle s\'affichera ici comme repère.';
+  // 3) compteurs
+  updateCounts();
 }
 
 function takeGps(){
@@ -634,16 +771,17 @@ function takeGps(){
 }
 
 function addPhotos(files){
+  const cat = photoCat;
   [...files].forEach(f=>{
-    if(photos.length >= 6){ toast('6 photos maximum'); return; }
+    if(photos.length >= PHOTO_MAX){ toast(PHOTO_MAX + ' photos maximum par envoi'); return; }
     const img = new Image();
     img.onload = ()=>{
-      const max = 1400;
+      const max = 1400;   // photo réduite à 1400 px de côté : assez pour lire le terrain, léger à envoyer
       const sc = Math.min(1, max/Math.max(img.width, img.height));
       const cv = document.createElement('canvas');
       cv.width = img.width*sc; cv.height = img.height*sc;
       cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
-      photos.push(cv.toDataURL('image/jpeg', 0.72));
+      photos.push({cat, data: cv.toDataURL('image/jpeg', 0.72)});
       drawPhotos();
       URL.revokeObjectURL(img.src);
     };
@@ -654,9 +792,9 @@ function addPhotos(files){
 function updateCounts(){
   document.querySelectorAll('#ficheBody .acc').forEach(acc=>{
     const cnt = acc.querySelector('.cnt');
-    const champs = acc.querySelectorAll('[data-k]');
+    const champs = [...acc.querySelectorAll('[data-k]')].filter(el=> el.closest('.fw').style.display !== 'none');
     if(!cnt || !champs.length) return;
-    const n = [...champs].filter(el=>el.value !== '').length;
+    const n = champs.filter(el=>el.value !== '').length;
     cnt.textContent = n + '/' + champs.length;
     cnt.classList.toggle('full', n === champs.length);
   });
@@ -665,11 +803,19 @@ function updateCounts(){
 function drawPhotos(){
   const box = document.getElementById('phList');
   const c = document.getElementById('phCnt');
-  if(c){ c.textContent = photos.length; c.classList.toggle('full', photos.length > 0); }
+  if(!box) return;
+  const anciennes = photoBox ? photoBox._anciennes : [];
+  if(c){ c.textContent = photos.length + anciennes.length; c.classList.toggle('full', photos.length + anciennes.length > 0); }
+  // bouton de catégorie en vert dès qu'une photo existe (nouvelle ou déjà envoyée)
+  document.querySelectorAll('.phcats button').forEach(b=>{
+    const n = photos.filter(p=>p.cat===b.dataset.cat).length + anciennes.filter(x=>x===b.dataset.cat).length;
+    b.classList.toggle('got', n>0);
+    b.textContent = '📷 ' + b.dataset.cat + (n ? ` (${n})` : '');
+  });
   box.innerHTML = '';
   photos.forEach((p,i)=>{
     const d = document.createElement('div'); d.className='ph';
-    d.innerHTML = `<img src="${p}"><button>×</button>`;
+    d.innerHTML = `<img src="${p.data}"><span class="cap">${p.cat}</span><button>×</button>`;
     d.querySelector('button').onclick = ()=>{ photos.splice(i,1); drawPhotos(); };
     box.append(d);
   });
@@ -677,12 +823,18 @@ function drawPhotos(){
 
 function collect(){
   const o = {};
-  document.querySelectorAll('#ficheBody [data-k]').forEach(el=> o[el.dataset.k] = el.value);
+  document.querySelectorAll('#ficheBody [data-k]').forEach(el=>{
+    // un champ masqué (ex : déblais si pas de décaissement) est envoyé vide
+    o[el.dataset.k] = el.closest('.fw').style.display === 'none' ? '' : el.value;
+  });
+  const c = calculs();
+  o.surface_m2 = c.surface_m2;
+  o.volume_m3  = c.volume_m3;
   o.id        = current.id;
   o.commune   = val(current.row,'commune');
   o.adresse   = val(current.row,'adresse');
   o.type      = current.ty.l;
-  o.travaux   = val(current.row,'travaux');
+  o.travaux   = val(current.row,'travaux') || natureTravaux(current.row);
   o.lat_theo  = current.lat;
   o.lon_theo  = current.lon;
   o.lat_gps   = current.gps ? current.gps.lat : '';
@@ -694,7 +846,8 @@ function collect(){
 async function sendFiche(){
   const data = collect();
   const btn = document.getElementById('btnSend');
-  btn.disabled = true; btn.textContent = 'Envoi…';
+  btn.disabled = true;
+  btn.textContent = photos.length ? `Envoi (${photos.length} photo${photos.length>1?'s':''})…` : 'Envoi…';
   try{
     const r = await fetch(CONFIG.APPS_SCRIPT_URL, {
       method:'POST',
@@ -703,8 +856,9 @@ async function sendFiche(){
     });
     const j = await r.json();
     if(!j.ok) throw new Error(j.error || 'réponse invalide');
-    releves[data.id] = data;
-    toast('Relevé enregistré dans le Sheet');
+    releves[data.id] = j.releve || data;   // le script renvoie la ligne à jour, avec les liens photos
+    if(j.avertissement) toast('Relevé enregistré — ' + j.avertissement, 8000);
+    else toast('Relevé enregistré dans le Sheet');
     closeFiche(); refresh();
   }catch(e){
     toast('Échec de l\'envoi : ' + e.message + ' — sauvegarde locale conseillée', 6000);
