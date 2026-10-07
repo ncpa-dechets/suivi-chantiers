@@ -7,7 +7,9 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -170,6 +172,8 @@ a.ph{display:block; text-decoration:none; color:var(--gris); text-align:center; 
 
 .leaflet-popup-content{margin:9px 11px; font-family:inherit}
 .pop b{font-size:14px}
+.cl{width:38px; height:38px; border-radius:50%; background:rgba(21,101,192,.85); border:3px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,.4); display:flex; align-items:center; justify-content:center; color:#fff; font:700 13px system-ui,sans-serif}
+.cl.cl-ok{background:rgba(46,125,50,.9)}
 .pop .l{font-size:12px; color:var(--gris)}
 
 /* =================== RAPPORT PDF (A4 recto-verso) =================== */
@@ -498,7 +502,7 @@ const FIELD_DEFS = [
 /* =======================================================================
    CARTE
    ======================================================================= */
-const map = L.map('map', {preferCanvas:true}).setView(CONFIG.CENTRE, CONFIG.ZOOM);
+const map = L.map('map', {preferCanvas:true, maxZoom:20}).setView(CONFIG.CENTRE, CONFIG.ZOOM);
 
 const positron = L.maplibreGL({
   style:'https://tiles.openfreemap.org/styles/positron',
@@ -512,7 +516,22 @@ const ortho = L.tileLayer(
 
 L.control.layers({'Plan (OpenFreeMap)':positron, 'Satellite (IGN)':ortho}, null, {position:'topright'}).addTo(map);
 L.control.scale({imperial:false}).addTo(map);
-layer = L.layerGroup().addTo(map);
+// Clusters selon la densité ; pastille verte quand tous les sites du groupe sont relevés
+layer = L.markerClusterGroup({
+  showCoverageOnHover:false,
+  maxClusterRadius: window.innerWidth <= 860 ? 60 : 45,
+  disableClusteringAtZoom:17,
+  spiderfyOnMaxZoom:true,
+  chunkedLoading:true,
+  iconCreateFunction: c => {
+    const ms = c.getAllChildMarkers();
+    const tous = ms.every(m => releves[m._data.id]);
+    return L.divIcon({
+      html:`<div class="cl${tous?' cl-ok':''}"><span>${ms.length}</span></div>`,
+      className:'', iconSize:[38,38]
+    });
+  }
+}).addTo(map);
 setTimeout(()=>map.invalidateSize(), 250);
 
 /* =======================================================================
@@ -650,7 +669,10 @@ function refresh(){
 
     m._data = {id, row, lat, lon, ty};
     // sur mobile on ouvre la fiche directement, le popup ferait un clic de trop
-    if(!mobile) m.bindPopup(popupHtml(m._data));
+    if(!mobile){
+      m.bindPopup(popupHtml(m._data));
+      m.on('popupopen', ()=>chargerAdresse(m._data));
+    }
     m.on('click', ()=>{ setTimeout(()=>openFiche(m._data), mobile ? 0 : 10); });
     m.addTo(layer);
     markers[id] = m;
@@ -706,6 +728,29 @@ function majPastilles(compte){
   });
 }
 
+// Titre lisible : adresse du fichier si elle existe, sinon « Commune — type »
+function titreSite(d){
+  const a = val(d.row,'adresse');
+  if(a) return a;
+  const c = val(d.row,'commune');
+  return c ? `${c} — ${d.ty.l}` : d.ty.l;
+}
+
+// Adresse la plus proche (BAN), chargée à l'ouverture du popup puis mise en cache
+const adrCache = {};
+async function chargerAdresse(d){
+  if(adrCache[d.id] !== undefined) return;
+  adrCache[d.id] = '';
+  try{
+    const r = await fetch(`https://api-adresse.data.gouv.fr/reverse/?lon=${d.lon}&lat=${d.lat}`);
+    const f = (await r.json()).features?.[0];
+    adrCache[d.id] = f ? (f.properties.name || '') : '';
+  }catch(e){}
+  document.querySelectorAll('.pop [data-adr]').forEach(el=>{
+    if(el.dataset.adr === d.id && adrCache[d.id]) el.textContent = adrCache[d.id] + ' · ';
+  });
+}
+
 function popupHtml(d){
   const rv = releves[d.id];
   const b = rv ? `<span class="badge ${badgeCls(rv.difficulte)}">${rv.difficulte||'Relevé fait'}</span>` : '';
@@ -714,8 +759,9 @@ function popupHtml(d){
       `<img src="${p.thumb}" title="${p.cat}" ${imgSecours(p.thumb2,'hide')}>`).join('') +
       `</div><span class="l">📷 ${ph.length} photo(s)</span><br>` : '';
   return `<div class="pop">
-    <b>${val(d.row,'adresse') || d.id}</b> ${b}<br>
-    <span class="l">${val(d.row,'commune')} — ${d.ty.l} (${natureTravaux(d.row)})</span><br>
+    <b>${titreSite(d)}</b> ${b}<br>
+    <span class="l" data-adr="${d.id}">${adrCache[d.id] || ''}</span>
+    <span class="l">${natureTravaux(d.row)}</span><br>
     ${th}
     <button style="margin-top:6px" onclick="void 0">Ouvrir la fiche</button>
   </div>`;
@@ -750,7 +796,7 @@ function openFiche(d){
   photos = [];
   const saved = releves[d.id] || {};
   document.getElementById('ficheType').textContent = d.ty.l + ' — ' + natureTravaux(d.row);
-  document.getElementById('ficheTitre').textContent = val(d.row,'adresse') || d.id;
+  document.getElementById('ficheTitre').textContent = titreSite(d);
   document.getElementById('ficheSub').textContent =
     `${val(d.row,'commune')} · ${d.id} · ${d.lat.toFixed(6)}, ${d.lon.toFixed(6)}`;
 
