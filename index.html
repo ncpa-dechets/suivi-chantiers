@@ -243,6 +243,28 @@ a.ph{display:block; text-decoration:none; color:var(--gris); text-align:center; 
   border:.3mm dashed var(--bord); border-radius:2mm; margin-top:1mm}
 .r-foot{flex:0 0 auto; margin-top:3mm; padding-top:1.8mm; border-top:.3mm solid var(--bord);
   display:flex; justify-content:space-between; gap:4mm; font-size:7.3pt; color:var(--gris)}
+/* fiche commune : plan de la commune + liste des projets */
+.rc-sum{display:flex; flex-wrap:wrap; gap:1.5mm 6mm; padding:3mm 0 0; font-size:9.5pt; color:var(--gris); flex:0 0 auto}
+.rc-sum span{display:inline-flex; align-items:center; gap:1.6mm}
+.rc-sum i{width:3.2mm; height:3.2mm; border-radius:50%}
+.rc-sum b{color:#22262b}
+.rc-map{margin-top:3.5mm; flex:0 0 auto; border:.3mm solid var(--bord)}
+.rc-map svg{position:absolute; inset:0; width:100%; height:100%}
+.rc-map svg text{font-family:Calibri,Carlito,"Segoe UI",system-ui,sans-serif}
+.rc-t{width:100%; border-collapse:collapse; font-size:9pt; flex:0 0 auto}
+.rc-t th{text-align:left; font-size:7pt; text-transform:uppercase; letter-spacing:.06em; color:var(--gris);
+  font-weight:700; padding:1.3mm 1.6mm; background:var(--fond); border-bottom:.4mm solid var(--rouge)}
+.rc-t td{padding:1.2mm 1.6mm; border-bottom:.2mm solid var(--bord); vertical-align:top; line-height:1.25}
+.rc-t td small{display:block; font-size:7.5pt; color:var(--gris)}
+.rc-t td small.al{color:#B4451E; font-weight:700}
+.rc-t .et{font-size:7.5pt; padding:.4mm 2mm; white-space:normal}
+.rc-t .badge{font-size:7.5pt; padding:.4mm 2mm}
+.rc-n{display:inline-flex; width:6mm; height:6mm; border-radius:50%; align-items:center; justify-content:center;
+  color:#fff; font-weight:700; font-size:8.5pt}
+.rc-gps{font-family:Consolas,"Cascadia Mono",monospace; font-size:7.5pt; color:var(--gris); white-space:nowrap}
+.rc-mut{color:#9aa0a6; font-style:italic}
+.rc-note{font-size:7.5pt; color:var(--gris); margin-top:2.5mm; line-height:1.35; flex:0 0 auto}
+.rc-fill{flex:1 1 auto}
 @media print{
   @page{size:A4; margin:0}
   html,body{height:auto !important; overflow:visible !important; display:block !important; background:#fff !important}
@@ -437,8 +459,10 @@ table.pt{width:100%; border-collapse:collapse; font-size:13px}
       <button class="wide" id="expCsv">Relevés → CSV</button>
       <button class="wide" id="expGeo">Relevés → GeoJSON (QGIS)</button>
       <button class="wide" id="expPdf">Rapports PDF (sites affichés)</button>
+      <button class="wide" id="expCom">Projets par commune (PDF)</button>
       <p class="muted">Les relevés sont aussi envoyés automatiquement dans le Google Sheet.<br>
-      Rapports PDF : un recto-verso par site relevé, selon les filtres (commune, type).</p>
+      Rapports PDF : un recto-verso par site relevé, selon les filtres (commune, type).<br>
+      Projets par commune : plan et liste de tous les projets avec l'adresse BAN la plus proche, une fiche par commune.</p>
     </div>
 
   </aside>
@@ -496,6 +520,7 @@ table.pt{width:100%; border-collapse:collapse; font-size:13px}
     <div class="sec">
       <h3>Export</h3>
       <button class="wide" id="pCsv">Tableau filtré → CSV</button>
+      <button class="wide" id="pCom">Fiches communes → PDF</button>
       <p class="muted" id="pSrc">—</p>
     </div>
   </aside>
@@ -987,16 +1012,34 @@ function titreSite(d){
   return c ? `${c} — ${d.ty.l}` : d.ty.l;
 }
 
+// Adresse BAN la plus proche d'un point (géocodage Géoplateforme, ex-api-adresse.data.gouv.fr), mise en cache
+const banCache = {};
+const pause = ms => new Promise(r=>setTimeout(r, ms));
+function adresseBAN(lat, lon){
+  const k = cleCoord(lat, lon);
+  if(!banCache[k]) banCache[k] = (async ()=>{
+    for(let essai=1; essai<=3; essai++){
+      try{
+        const r = await fetch(`https://data.geopf.fr/geocodage/reverse?index=address&limit=1&lon=${lon}&lat=${lat}`);
+        if(r.status===429){ await pause(1000*essai); continue; }   // limite du service : 50 requêtes/s par adresse IP
+        const p = r.ok ? (await r.json()).features?.[0]?.properties : null;
+        if(p) return p;
+      }catch(e){}
+      break;
+    }
+    delete banCache[k];   // échec : nouvel essai la fois suivante
+    return null;
+  })();
+  return banCache[k];
+}
+
 // Adresse la plus proche (BAN), chargée à l'ouverture du popup puis mise en cache
 const adrCache = {};
 async function chargerAdresse(d){
   if(adrCache[d.id] !== undefined) return;
   adrCache[d.id] = '';
-  try{
-    const r = await fetch(`https://api-adresse.data.gouv.fr/reverse/?lon=${d.lon}&lat=${d.lat}`);
-    const f = (await r.json()).features?.[0];
-    adrCache[d.id] = f ? (f.properties.name || '') : '';
-  }catch(e){}
+  const p = await adresseBAN(d.lat, d.lon);
+  adrCache[d.id] = p ? (p.name || '') : '';
   document.querySelectorAll('.pop [data-adr]').forEach(el=>{
     if(el.dataset.adr === d.id && adrCache[d.id]) el.textContent = adrCache[d.id] + ' · ';
   });
@@ -1396,13 +1439,19 @@ function blocKV(sec, d, deuxCol){
   return lignes ? `<div class="r-kv${deuxCol?' c2':''}">${lignes}</div>` : '<p class="r-vide">Non renseigné</p>';
 }
 
-// image IGN (WMS Géoplateforme) centrée sur le point ; demi = demi-largeur au sol en mètres
-function wmsIGN(couche, fmt, lat, lon, demi, w, h){
-  const R = 6378137, x = lon*Math.PI/180*R, y = Math.log(Math.tan(Math.PI/4 + lat*Math.PI/360))*R;
-  const dx = demi/Math.cos(lat*Math.PI/180), dy = dx*h/w;   // correction d'échelle Web Mercator
+// coordonnées Web Mercator (EPSG:3857), en mètres
+const merc = (lat, lon) => [lon*Math.PI/180*6378137, Math.log(Math.tan(Math.PI/4 + lat*Math.PI/360))*6378137];
+// image IGN (WMS Géoplateforme) d'une emprise Web Mercator [x0, y0, x1, y1]
+function wmsBbox(couche, fmt, b, w, h){
   return 'https://data.geopf.fr/wms-r/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&STYLES=' +
     `&LAYERS=${couche}&FORMAT=${encodeURIComponent(fmt)}&CRS=EPSG:3857` +
-    `&BBOX=${x-dx},${y-dy},${x+dx},${y+dy}&WIDTH=${w}&HEIGHT=${h}`;
+    `&BBOX=${b.join(',')}&WIDTH=${w}&HEIGHT=${h}`;
+}
+// image IGN centrée sur le point ; demi = demi-largeur au sol en mètres
+function wmsIGN(couche, fmt, lat, lon, demi, w, h){
+  const [x, y] = merc(lat, lon);
+  const dx = demi/Math.cos(lat*Math.PI/180), dy = dx*h/w;   // correction d'échelle Web Mercator
+  return wmsBbox(couche, fmt, [x-dx, y-dy, x+dx, y+dy], w, h);
 }
 const PIN = `<svg class="pin" viewBox="0 0 24 30"><path d="M12 29s10-10.2 10-17A10 10 0 0 0 2 12c0 6.8 10 17 10 17z"
   fill="#B91E27" stroke="#fff" stroke-width="2"/><circle cx="12" cy="12" r="3.6" fill="#fff"/></svg>`;
@@ -1498,11 +1547,18 @@ function photosRapport(d, locales){
 
 function ouvrirRapport(items, nomFichier){
   if(!items.length) return toast('Aucun relevé à mettre en page');
+  const nb = items.length;
+  afficherRapport(items.map(pagesSite).join(''), nomFichier, `${nb} site${nb>1?'s':''}`);
+}
+function afficherRapport(html, nomFichier, libelle){
   const box = document.getElementById('rapport');
-  document.getElementById('rapPages').innerHTML = items.map(pagesSite).join('');
+  document.getElementById('rapPages').innerHTML = html;
   box._nom = nomFichier;
   box.classList.add('show');
   box.scrollTop = 0;
+  decouperPages();     // avant le zoom : les mesures se font en taille réelle
+  const n = document.querySelectorAll('#rapPages .r-page').length;
+  box._libelle = `${libelle} · ${n} page${n>1?'s':''}`;
   ajusterZoom();
   suiviImages();
 }
@@ -1521,8 +1577,7 @@ function suiviImages(){
   const st = document.getElementById('rapStatut');
   const maj = ()=>{
     const {imgs, ok} = imagesChargees();
-    const nb = document.querySelectorAll('.r-page').length/2;
-    st.textContent = `${nb} site${nb>1?'s':''} · ${nb*2} pages` + (ok<imgs.length ? ` · images ${ok}/${imgs.length}…` : ' · prêt');
+    st.textContent = document.getElementById('rapport')._libelle + (ok<imgs.length ? ` · images ${ok}/${imgs.length}…` : ' · prêt');
   };
   document.querySelectorAll('#rapPages img').forEach(i=>{ i.addEventListener('load', maj); i.addEventListener('error', maj); });
   maj();
@@ -1564,6 +1619,198 @@ function rapportGroupe(){
   const fc = document.getElementById('fCommune').value;
   if(!fc && liste.length > 15 && !confirm(`Aucune commune filtrée : générer ${liste.length} rapports (${liste.length*2} pages) ?`)) return;
   ouvrirRapport(liste, `Releves_${nomPropre(fc || 'toutes_communes')}_${new Date().toISOString().slice(0,10)}`);
+}
+
+/* =======================================================================
+   PROJETS PAR COMMUNE — une fiche par commune : plan de situation + liste
+   des projets (onglet de priorisation) avec l'adresse BAN la plus proche
+   ======================================================================= */
+const RC_W = 1600, RC_H = 900;      // image du plan en pixels (fixe la proportion du cadre)
+
+// contour de la commune (geo.api.gouv.fr), mis en cache
+const contourCache = {};
+function contourCommune(insee){
+  if(!insee) return Promise.resolve(null);
+  if(!contourCache[insee]) contourCache[insee] = fetch(`https://geo.api.gouv.fr/communes/${encodeURIComponent(insee)}?fields=contour&format=json`)
+    .then(r=> r.ok ? r.json() : null)
+    .then(j=> j?.contour || null)
+    .catch(()=> null)
+    .then(c=>{ if(!c) delete contourCache[insee]; return c; });
+  return contourCache[insee];
+}
+
+// plan IGN de la commune : contour en pointillés + pastilles numérotées
+// (les pastilles qui se chevauchent sont écartées et reliées à leur point)
+function carteCommune(items, contour){
+  const pts = items.filter(o=>o.p.lat!==null).map(o=>({o, m:merc(o.p.lat, o.p.lon)}));
+  const anneaux = !contour ? [] : (contour.type==='Polygon' ? contour.coordinates : contour.coordinates.flat(1))
+    .map(a=> a.map(([lon, lat])=> merc(lat, lon)));
+  const tous = pts.map(x=>x.m).concat(anneaux.flat());
+  if(!tous.length) return '';
+  const xs = tous.map(m=>m[0]), ys = tous.map(m=>m[1]);
+  const cx = (Math.min(...xs)+Math.max(...xs))/2, cy = (Math.min(...ys)+Math.max(...ys))/2;
+  // marge de 6 % de chaque côté, emprise minimale (un seul point), puis proportion de l'image
+  let dx = Math.max((Math.max(...xs)-Math.min(...xs))*1.12, 1500), dy = Math.max((Math.max(...ys)-Math.min(...ys))*1.12, 1500);
+  if(dx/dy < RC_W/RC_H) dx = dy*RC_W/RC_H; else dy = dx*RC_H/RC_W;
+  const b = [cx-dx/2, cy-dy/2, cx+dx/2, cy+dy/2];
+  const px = m => [(m[0]-b[0])/dx*RC_W, (b[3]-m[1])/dy*RC_H];
+
+  const R = 25, ecart = 2*R + 6;
+  const lab = pts.map(x=>{ const [ax, ay] = px(x.m); return {o:x.o, ax, ay, x:ax, y:ay}; });
+  for(let it=0; it<80; it++){
+    let bouge = false;
+    lab.forEach((a, i)=> lab.slice(i+1).forEach((c, j)=>{
+      let vx = c.x-a.x, vy = c.y-a.y, d = Math.hypot(vx, vy);
+      if(d >= ecart) return;
+      if(d < .01){ vx = Math.cos(i+j*2.4); vy = Math.sin(i+j*2.4); d = 1; }   // points confondus
+      const k = (ecart-d)/2/d;
+      a.x -= vx*k; a.y -= vy*k; c.x += vx*k; c.y += vy*k;
+      bouge = true;
+    }));
+    lab.forEach(l=>{ l.x = Math.min(RC_W-R-3, Math.max(R+3, l.x)); l.y = Math.min(RC_H-R-3, Math.max(R+3, l.y)); });
+    if(!bouge) break;
+  }
+
+  const f = v => v.toFixed(1);
+  const chemin = anneaux.map(a=> 'M' + a.map(m=> px(m).map(f).join(' ')).join('L') + 'Z').join('');
+  const svg = `<svg viewBox="0 0 ${RC_W} ${RC_H}" preserveAspectRatio="none">
+    ${chemin ? `<path d="M0 0H${RC_W}V${RC_H}H0Z${chemin}" fill="#fff" fill-opacity=".45" fill-rule="evenodd"/>
+      <path d="${chemin}" fill="none" stroke="#B91E27" stroke-width="5" stroke-dasharray="18 10" stroke-linejoin="round"/>` : ''}
+    ${lab.filter(l=> Math.hypot(l.x-l.ax, l.y-l.ay) > 3).map(l=>
+      `<line x1="${f(l.ax)}" y1="${f(l.ay)}" x2="${f(l.x)}" y2="${f(l.y)}" stroke="#22262b" stroke-width="2.5"/>
+       <circle cx="${f(l.ax)}" cy="${f(l.ay)}" r="7" fill="${l.o.p.ty.c}" stroke="#fff" stroke-width="2.5"/>`).join('')}
+    ${lab.slice().reverse().map(l=>
+      `<circle cx="${f(l.x)}" cy="${f(l.y)}" r="${R}" fill="${l.o.p.ty.c}" stroke="#fff" stroke-width="5"/>
+       <text x="${f(l.x)}" y="${f(l.y)}" dy=".35em" text-anchor="middle" font-size="26" font-weight="700" fill="#fff">${l.o.n}</text>`).join('')}
+  </svg>`;
+  return `<div class="r-map rc-map" style="aspect-ratio:${RC_W}/${RC_H}">
+    <img src="${wmsBbox('GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2','image/png',b,RC_W,RC_H)}"
+      referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('ko')">${svg}
+    <span class="cap">Plan IGN${chemin ? ' · limite communale en pointillés' : ''}</span></div>`;
+}
+
+function adresseHtml(p, a){
+  if(p.lat===null) return '<span class="rc-mut">Sans coordonnées GPS</span>';
+  if(!a) return '<span class="rc-mut">Aucune adresse BAN trouvée à proximité</span>';
+  // adresse la plus proche sur une commune voisine : point en limite de commune, à vérifier
+  const autre = p.insee && a.citycode && ![a.citycode, a.oldcitycode].map(String).includes(String(p.insee));
+  return `<b>${esc(a.name)}</b><small${autre ? ' class="al"' : ''}>${esc(a.postcode)} ${esc(a.city)}` +
+    `${autre ? ' (autre commune)' : ''}${a.distance!=null ? ' · à ' + a.distance + ' m' : ''}</small>`;
+}
+
+// une seule page par commune : decouperPages() envoie ensuite les lignes en trop sur des pages « suite »
+function pageCommune(g, items){
+  const nb = items.length;
+  const parType = PRIO_TYPES.map(t=>({t, n:items.filter(o=>o.p.ty.k===t.k).length})).filter(x=>x.n);
+  const nbRv = items.filter(o=>o.p.rv).length, sansGps = items.filter(o=>o.p.lat===null).length;
+  const tete = `<thead><tr><th style="width:9mm">N°</th><th style="width:37mm">Type de projet</th>
+    <th style="width:27mm">Existant / à créer</th><th>Adresse la plus proche (BAN)</th>
+    <th style="width:19mm">GPS</th><th style="width:19mm">Relevé</th></tr></thead>`;
+  const ligne = ({p, n, adr}) => `<tr>
+    <td><span class="rc-n" style="background:${p.ty.c}">${n}</span></td>
+    <td>${esc(p.typeBrut || p.ty.l)}<small>Rang de priorité ${esc(p.rang)}</small></td>
+    <td>${etatHtml(p.etat)}</td>
+    <td>${adresseHtml(p, adr)}</td>
+    <td class="rc-gps">${p.lat!==null ? p.lat.toFixed(5) + '<br>' + p.lon.toFixed(5) : '—'}</td>
+    <td>${p.rv ? `<span class="badge ${badgeCls(p.rv.difficulte)}">${esc(p.rv.difficulte || 'Fait')}</span>` : '<span class="rc-mut">À relever</span>'}</td>
+  </tr>`;
+  return `
+  <section class="r-page rc1" data-commune="${esc(g.commune)}">
+    <div class="r-head">
+      <div>
+        <div class="ey">NCPA · Dalles béton — projets prévus sur la commune</div>
+        <h1>${esc(g.commune)}</h1>
+        <div class="sub">${g.insee ? 'Code INSEE ' + esc(g.insee) : ''}${g.ordre!=null ? ' · commune n° ' + esc(g.ordre) + ' dans l\'ordre de passage' : ''}</div>
+      </div>
+      <div class="r-diff"><small>Projets</small><span class="r-pill">${nb}</span></div>
+    </div>
+    <div class="rc-sum">
+      ${parType.map(x=>`<span><i style="background:var(${x.t.c})"></i>${x.t.l} <b>${x.n}</b></span>`).join('')}
+      <span>Relevés terrain faits <b>${nbRv}</b></span>
+      ${sansGps ? `<span>Sans coordonnées <b>${sansGps}</b></span>` : ''}
+    </div>
+    ${carteCommune(items, g.contour)}
+    <div class="r-h">Projets prévus</div>
+    <table class="rc-t">${tete}<tbody>${items.map(ligne).join('')}</tbody></table>
+    <div class="rc-fill"></div>
+    <p class="rc-note">Adresse : adresse de la Base Adresse Nationale la plus proche des coordonnées GPS du projet, avec la distance au point.
+      « Autre commune » : cette adresse se trouve sur une commune voisine (point en limite de commune, à vérifier).
+      Édité le ${new Date().toLocaleDateString('fr-FR')}.</p>
+    <div class="r-foot">
+      <span>NCPA — Direction de la maîtrise des déchets · Dalles béton — projets par commune</span>
+      <span>${esc(g.commune)} · <span class="rc-pg">1/1</span></span></div>
+  </section>`;
+}
+
+// pages « commune » mises en page : tant que le pied de page déborde, les dernières lignes
+// du tableau passent sur une page « suite » (la hauteur des lignes dépend des adresses)
+function decouperPages(){
+  const deborde = p =>{
+    const f = p.querySelector('.r-foot');
+    return f.offsetTop + f.offsetHeight > p.clientHeight - parseFloat(getComputedStyle(p).paddingBottom) + 1;
+  };
+  document.querySelectorAll('#rapPages .r-page.rc1').forEach(p1=>{
+    const pages = [p1];
+    let page = p1;
+    while(deborde(page) && page.querySelectorAll('tbody tr').length > 1){
+      const suite = document.createElement('section');
+      suite.className = 'r-page';
+      suite.innerHTML = `<div class="r-head2"><b>${esc(p1.dataset.commune)}</b><span>Projets prévus — suite</span></div>
+        <table class="rc-t">${p1.querySelector('thead').outerHTML}<tbody></tbody></table><div class="rc-fill"></div>`;
+      const note = page.querySelector('.rc-note');     // la note reste sur la dernière page
+      if(note) suite.append(note);
+      suite.append(page.querySelector('.r-foot').cloneNode(true));
+      page.after(suite);
+      const de = page.querySelector('tbody'), vers = suite.querySelector('tbody');
+      while(deborde(page) && de.rows.length > 1) vers.prepend(de.lastElementChild);
+      pages.push(suite);
+      page = suite;
+    }
+    pages.forEach((p, k)=> p.querySelector('.rc-pg').textContent = `${k+1}/${pages.length}`);
+  });
+}
+
+// liste = chantiers de l'onglet de priorisation ; une fiche par commune
+async function rapportCommunes(liste){
+  if(!liste.length) return toast('Aucun projet à mettre en page');
+  const groupes = new Map();
+  liste.slice().sort((a,b)=> (a.ordre ?? 1e9)-(b.ordre ?? 1e9) || a.commune.localeCompare(b.commune,'fr') || a.rang-b.rang)
+    .forEach(p=>{
+      if(!groupes.has(p.commune)) groupes.set(p.commune, {commune:p.commune, insee:p.insee, ordre:p.ordre, projets:[]});
+      groupes.get(p.commune).projets.push(p);
+    });
+  const gs = [...groupes.values()];
+  if(gs.length > 3 && !confirm(`Générer les fiches de ${gs.length} communes (${liste.length} projets) ?`)) return;
+
+  // adresses BAN par lots de 8 toutes les 0,3 s : le service refuse au-delà de 50 requêtes/s
+  const aGeocoder = liste.filter(p=>p.lat!==null), adr = new Map();
+  let fait = 0;
+  const lib = ()=> `Adresses BAN… ${fait}/${aGeocoder.length}`;
+  Busy.start('ban', lib(), {timer:true});
+  try{
+    const contours = Promise.all(gs.map(async g=>{ g.contour = await contourCommune(g.insee); }));
+    for(let i=0; i<aGeocoder.length; i+=8){
+      await Promise.all([pause(300), ...aGeocoder.slice(i, i+8).map(async p=>{ adr.set(p, await adresseBAN(p.lat, p.lon)); fait++; })]);
+      Busy.start('ban', lib());
+    }
+    Busy.start('ban', 'Contours des communes…');
+    await contours;
+  }finally{
+    Busy.end('ban');
+  }
+
+  afficherRapport(gs.map(g=> pageCommune(g, g.projets.map((p, i)=>({p, n:i+1, adr:adr.get(p)})))).join(''),
+    `Projets_${gs.length===1 ? nomPropre(gs[0].commune) : 'communes'}_${new Date().toISOString().slice(0,10)}`,
+    `${gs.length} commune${gs.length>1?'s':''}`);
+}
+
+// depuis la carte terrain : commune filtrée (ou toutes), selon les cases type et état du relevé
+function rapportCommunesTerrain(){
+  if(!prio) return toast(`Onglet « ${CONFIG.PRIO_SHEET} » introuvable : liste des projets indisponible`, 4000);
+  const fc = document.getElementById('fCommune').value;
+  const types = [...document.querySelectorAll('#fTypes input:checked')].map(i=>i.value);
+  const etats = [...document.querySelectorAll('#fEtat input:checked')].map(i=>i.value);
+  rapportCommunes(prio.filter(p=> (!fc || p.commune===fc) && types.includes(p.ty.k) && etats.includes(p.rv ? 'done' : 'todo')));
 }
 
 /* =======================================================================
@@ -1881,6 +2128,7 @@ document.getElementById('pCommune').onchange = prioFiltrer;
 document.getElementById('pLigne').onchange = ()=> prioRender();
 document.getElementById('pFit').onclick = ()=> pmap && prioFit();
 document.getElementById('pCsv').onclick = prioCsv;
+document.getElementById('pCom').onclick = ()=> rapportCommunes(pVisibles);
 document.getElementById('pReset').onclick = ()=>{
   ['pQ','pMin','pMax','pCommune'].forEach(id=> document.getElementById(id).value = '');
   document.querySelectorAll('#pPanel #pTypes input, #pPanel #pEtats input, #pPanel #pRv input').forEach(i=> i.checked = true);
@@ -1945,6 +2193,7 @@ document.getElementById('btnJson').onclick = ()=>{
 document.getElementById('expCsv').onclick = exportCsv;
 document.getElementById('expGeo').onclick = exportGeo;
 document.getElementById('expPdf').onclick = ()=>{ if(window.innerWidth <= 860) togglePanel(false); rapportGroupe(); };
+document.getElementById('expCom').onclick = ()=>{ if(window.innerWidth <= 860) togglePanel(false); rapportCommunesTerrain(); };
 document.getElementById('btnPdf').onclick = rapportFiche;
 document.getElementById('rapPrint').onclick = imprimerRapport;
 document.getElementById('rapClose').onclick = ()=> document.getElementById('rapport').classList.remove('show');
