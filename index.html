@@ -1478,7 +1478,7 @@ function pagesSite(it){
     ['Coffrage', d.coffrage_ml ? frN(d.coffrage_ml)+' m' : ''],
     ['Distance toupie', d.toupie_distance ? frN(d.toupie_distance)+' m' : ''],
     ['Goulotte', d.goulotte_ml ? frN(d.goulotte_ml)+' m' : '']
-  ].map(f=>`<div class="r-fig${f[1]?'':' vide'}"><b>${esc(f[1]||'—')}</b><span>${esc(f[0])}${f[2]?' · <i>'+esc(f[2])+'</i>':''}</span></div>`).join('');
+  ].map(f=>`<div class="r-fig${f[1]?'':' vide'}"><b>${esc(f[1]||'NC')}</b><span>${esc(f[0])}${f[2]?' · <i>'+esc(f[2])+'</i>':''}</span></div>`).join('');
 
   const cartes = (lat!==null && lon!==null) ? `
     <div class="r-maps">
@@ -1491,7 +1491,7 @@ function pagesSite(it){
     </div>` : '';
 
   const pied = n => `<div class="r-foot">
-      <span>NCPA — Direction de la maîtrise des déchets · Reconnaissance terrain dalles béton</span>
+      <span>NCPA · Direction de la maîtrise des déchets · Reconnaissance terrain dalles béton</span>
       <span>${esc(d.id)} · ${n}/2</span></div>`;
 
   const gps = (nombre(d.lat_gps)!==null) ? `GPS relevé sur place : ${frN(d.lat_gps,6)}, ${frN(d.lon_gps,6)}`
@@ -1506,16 +1506,16 @@ function pagesSite(it){
   <section class="r-page">
     <div class="r-head">
       <div>
-        <div class="ey">NCPA · Reconnaissance terrain — dalle béton</div>
+        <div class="ey">NCPA · Reconnaissance terrain · dalle béton</div>
         <h1>${titre}</h1>
         <div class="sub">${esc(d.commune)} · ${esc(d.type)} · ${nature} · ${esc(d.id)}</div>
       </div>
       <div class="r-diff"><small>Difficulté</small>${pill}</div>
     </div>
     <div class="r-meta">
-      <span>Visite du <b>${frDate(d.date_visite) || '—'}</b></span>
-      <span>Relevé par <b>${esc(d.releveur || '—')}</b></span>
-      <span>Accompagné de <b>${esc(d.accompagnant || '—')}</b></span>
+      <span>${d.date_visite ? `Visite du <b>${frDate(d.date_visite)}</b>` : 'Date de visite <b>non renseignée</b>'}</span>
+      <span>Relevé par <b>${esc(d.releveur || 'non renseigné')}</b></span>
+      ${d.accompagnant ? `<span>Accompagné de <b>${esc(d.accompagnant)}</b></span>` : ''}
     </div>
     ${cartes}
     <div class="r-figs">${figs}</div>
@@ -1708,19 +1708,19 @@ function pageCommune(g, items){
     <th style="width:19mm">GPS</th><th style="width:19mm">Relevé</th></tr></thead>`;
   const ligne = ({p, n, adr}) => `<tr>
     <td><span class="rc-n" style="background:${p.ty.c}">${n}</span></td>
-    <td>${esc(p.typeBrut || p.ty.l)}<small>Rang de priorité ${esc(p.rang)}</small></td>
+    <td>${esc(p.typeBrut || p.ty.l)}</td>
     <td>${etatHtml(p.etat)}</td>
     <td>${adresseHtml(p, adr)}</td>
-    <td class="rc-gps">${p.lat!==null ? p.lat.toFixed(5) + '<br>' + p.lon.toFixed(5) : '—'}</td>
+    <td class="rc-gps">${p.lat!==null ? p.lat.toFixed(5) + '<br>' + p.lon.toFixed(5) : 'NC'}</td>
     <td>${p.rv ? `<span class="badge ${badgeCls(p.rv.difficulte)}">${esc(p.rv.difficulte || 'Fait')}</span>` : '<span class="rc-mut">À relever</span>'}</td>
   </tr>`;
   return `
   <section class="r-page rc1" data-commune="${esc(g.commune)}">
     <div class="r-head">
       <div>
-        <div class="ey">NCPA · Dalles béton — projets prévus sur la commune</div>
+        <div class="ey">NCPA · Dalles béton · projets prévus sur la commune</div>
         <h1>${esc(g.commune)}</h1>
-        <div class="sub">${g.insee ? 'Code INSEE ' + esc(g.insee) : ''}${g.ordre!=null ? ' · commune n° ' + esc(g.ordre) + ' dans l\'ordre de passage' : ''}</div>
+        <div class="sub">${g.insee ? 'Code INSEE ' + esc(g.insee) : ''}</div>
       </div>
       <div class="r-diff"><small>Projets</small><span class="r-pill">${nb}</span></div>
     </div>
@@ -1737,7 +1737,7 @@ function pageCommune(g, items){
       « Autre commune » : cette adresse se trouve sur une commune voisine (point en limite de commune, à vérifier).
       Édité le ${new Date().toLocaleDateString('fr-FR')}.</p>
     <div class="r-foot">
-      <span>NCPA — Direction de la maîtrise des déchets · Dalles béton — projets par commune</span>
+      <span>NCPA · Direction de la maîtrise des déchets · Dalles béton, projets par commune</span>
       <span>${esc(g.commune)} · <span class="rc-pg">1/1</span></span></div>
   </section>`;
 }
@@ -1755,7 +1755,7 @@ function decouperPages(){
     while(deborde(page) && page.querySelectorAll('tbody tr').length > 1){
       const suite = document.createElement('section');
       suite.className = 'r-page';
-      suite.innerHTML = `<div class="r-head2"><b>${esc(p1.dataset.commune)}</b><span>Projets prévus — suite</span></div>
+      suite.innerHTML = `<div class="r-head2"><b>${esc(p1.dataset.commune)}</b><span>Projets prévus (suite)</span></div>
         <table class="rc-t">${p1.querySelector('thead').outerHTML}<tbody></tbody></table><div class="rc-fill"></div>`;
       const note = page.querySelector('.rc-note');     // la note reste sur la dernière page
       if(note) suite.append(note);
@@ -1774,9 +1774,9 @@ function decouperPages(){
 async function rapportCommunes(liste){
   if(!liste.length) return toast('Aucun projet à mettre en page');
   const groupes = new Map();
-  liste.slice().sort((a,b)=> (a.ordre ?? 1e9)-(b.ordre ?? 1e9) || a.commune.localeCompare(b.commune,'fr') || a.rang-b.rang)
+  liste.slice().sort((a,b)=> a.commune.localeCompare(b.commune,'fr') || a.rang-b.rang)
     .forEach(p=>{
-      if(!groupes.has(p.commune)) groupes.set(p.commune, {commune:p.commune, insee:p.insee, ordre:p.ordre, projets:[]});
+      if(!groupes.has(p.commune)) groupes.set(p.commune, {commune:p.commune, insee:p.insee, projets:[]});
       groupes.get(p.commune).projets.push(p);
     });
   const gs = [...groupes.values()];
