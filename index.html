@@ -308,10 +308,11 @@ header{position:relative}
   grid-template-columns:270px minmax(0,1fr) minmax(560px,42%); grid-template-rows:minmax(0,1fr)}
 body.v-prio #body{display:none}
 body.v-prio #prio{display:grid}
-#pPanel{background:#fff; border-right:1px solid var(--bord); overflow-y:auto; padding:12px}
-#pPanel input[type=text], #pPanel input[type=number], #pPanel select{min-height:38px; padding:7px 9px; font-size:14px}
+#pPanel, #cPanel{background:#fff; border-right:1px solid var(--bord); overflow-y:auto; padding:12px}
+#pPanel input[type=text], #pPanel input[type=number], #pPanel select,
+#cPanel input[type=text], #cPanel input[type=number], #cPanel input[type=date]{min-height:38px; padding:7px 9px; font-size:14px}
 #pPanel select{padding-right:28px}
-#pPanel button{min-height:38px; padding:8px 10px; font-size:14px}
+#pPanel button, #cPanel button{min-height:38px; padding:8px 10px; font-size:14px}
 #pPanel .chk .n{margin-left:auto; color:var(--gris); font-size:12px}
 #pMapWrap{position:relative; min-height:0}
 #pMap{position:absolute; inset:0}
@@ -355,6 +356,74 @@ table.pt{width:100%; border-collapse:collapse; font-size:13px}
 .pop .acts > *{min-height:34px; padding:6px 10px; font-size:13px; font-weight:600; border:1px solid var(--bord);
   border-radius:6px; background:#fff; color:#22262b; text-decoration:none; display:inline-flex; align-items:center; cursor:pointer}
 
+/* =================== VUE CALENDRIER =================== */
+#cal{flex:1 1 auto; height:0; display:none; grid-template-columns:270px minmax(0,1fr); grid-template-rows:minmax(0,1fr)}
+body.v-cal #body{display:none}
+body.v-cal #cal{display:grid}
+#cPanel .sec > h3 span{text-transform:none; letter-spacing:0; font-weight:400}
+.cdl{display:grid; grid-template-columns:1fr 66px; gap:5px 8px; align-items:center; font-size:12.5px}
+.cdl input{text-align:right}
+.cbl{display:flex; align-items:center; gap:6px; font-size:12.5px; background:var(--fond); border:1px solid var(--bord);
+  border-radius:6px; padding:4px 4px 4px 8px; margin-bottom:5px}
+.cbl span{flex:1 1 auto; line-height:1.3}
+.cbl small{display:block; color:var(--gris)}
+#cPanel .cbl button{min-height:28px; padding:2px 9px; font-size:15px; line-height:1; border:none; background:none; color:var(--gris)}
+#cPanel .cbl button:hover{color:var(--danger); background:#fff}
+#cMain{display:flex; flex-direction:column; min-height:0; min-width:0}
+#cBar{display:flex; align-items:center; flex-wrap:wrap; gap:8px 16px; padding:8px 14px; background:#fff; border-bottom:1px solid var(--bord)}
+.seg{display:flex; background:var(--gris-clair); border-radius:8px; padding:3px; gap:2px}
+.seg button{border:none; background:transparent; min-height:30px; padding:4px 14px; font-size:13.5px; color:var(--gris); border-radius:6px}
+.seg button.on{background:#fff; color:var(--rouge); box-shadow:0 1px 3px rgba(0,0,0,.15)}
+#cResume{font-size:13px}
+#cLeg{display:flex; flex-wrap:wrap; gap:4px 12px; margin-left:auto; font-size:12px; color:var(--gris)}
+#cLeg span{display:inline-flex; align-items:center; gap:5px}
+#cLeg i{display:inline-block; width:14px; height:10px; border-radius:2px}
+#cScroll{flex:1 1 auto; overflow:auto}
+.cvide{padding:50px 20px; text-align:center; color:var(--gris)}
+/* calendrier mensuel (lundi → vendredi) */
+.cmois-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(470px,1fr)); gap:14px; padding:14px; align-items:start}
+.cmois{background:#fff; border:1px solid var(--bord); border-radius:8px; overflow:hidden}
+.cmois h4{margin:0; padding:8px 12px; font-size:14.5px; background:var(--fond); border-bottom:1px solid var(--bord);
+  display:flex; align-items:baseline; gap:10px}
+.cmois h4 span{margin-left:auto; font-size:12px; font-weight:400; color:var(--gris)}
+.cgrid{display:grid; grid-template-columns:40px repeat(5,minmax(0,1fr))}
+.cgrid .hd{font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--gris); font-weight:700;
+  padding:4px 6px; border-bottom:1px solid var(--bord)}
+.cwk{font-size:10px; color:var(--gris); padding:5px 2px; text-align:center; background:var(--fond);
+  border-bottom:1px solid var(--gris-clair); border-right:1px solid var(--bord)}
+.cwk b{display:block; font-size:12px; color:#22262b}
+.cday{min-height:60px; padding:3px 4px 5px; border-bottom:1px solid var(--gris-clair); border-right:1px solid var(--gris-clair);
+  display:flex; flex-direction:column; gap:2px; min-width:0}
+.cday .dn{font-size:11px; color:var(--gris)}
+.cday.hors{background:#fafbfb}
+.cday.ferie, .cday.bloq{background:repeating-linear-gradient(135deg,#f4f5f6 0 6px,#e8eaec 6px 12px)}
+.cday .lib{font-size:10.5px; color:var(--gris); line-height:1.2; font-style:italic}
+.cday.auj{box-shadow:inset 0 0 0 2px var(--rouge)}
+.cday.auj .dn{color:var(--rouge); font-weight:700}
+.cchip{display:flex; align-items:center; gap:4px; font-size:11.5px; line-height:1.25; padding:2px 5px; border-radius:4px;
+  background:var(--fond); border:1px solid var(--gris-clair); border-left:4px solid; cursor:pointer; min-width:0}
+.cchip:hover{background:var(--gris-clair)}
+.cchip b{flex:0 0 auto}
+.cchip em{font-style:normal; overflow:hidden; white-space:nowrap; text-overflow:ellipsis}
+.cchip .al{margin-left:auto; color:var(--danger); font-weight:700}
+.cchip .al.soon{color:var(--warn)}
+/* planning détaillé + frise des étapes amont */
+#cScroll table.pt td{padding:4px 7px}
+.cst{display:inline-block; padding:2px 8px; border-radius:11px; font-size:11px; font-weight:700; white-space:nowrap}
+.cst.late{background:#FFEBEE; color:#B71C1C} .cst.soon{background:#FFF3E0; color:#B34700} .cst.ok{background:#E8F5E9; color:#1B5E20}
+.pt td.dt{font-variant-numeric:tabular-nums}
+.pt td.dt.late{color:var(--danger); font-weight:700}
+.gt{position:relative; width:440px; height:16px}
+.gt > span{position:absolute; top:3px; height:10px}
+.pt th.gth{cursor:default; padding:0; vertical-align:bottom}
+.gt.axe{height:30px}
+.gt.axe > span{top:auto; bottom:0; height:auto; border-left:1px solid var(--bord); padding:0 0 3px 3px;
+  font-size:10px; letter-spacing:0; text-transform:none; font-weight:400; white-space:nowrap}
+.g-val{background:#CFD8DC} .g-conv{background:#90A4AE} .g-dt{background:#64B5F6} .g-rec{background:#FFCC80} .g-sech{background:#A5D6A7}
+.gt > span.g-c{top:0; height:16px; width:3px; background:var(--rouge); border-radius:1px}
+.gt > span.g-auj{top:-5px; height:26px; width:0; border-left:1.5px dashed var(--danger)}
+.gt.axe > span.g-auj{top:0; height:auto; padding:0}
+
 @media(max-width:860px){
   /* le panneau devient un tiroir : la carte occupe tout l'écran */
   #panel{
@@ -391,6 +460,7 @@ table.pt{width:100%; border-collapse:collapse; font-size:13px}
   <nav class="tabs" id="tabs">
     <button data-vue="terrain" class="on">Carte terrain</button>
     <button data-vue="prio">Priorisation des chantiers</button>
+    <button data-vue="cal">Calendrier</button>
   </nav>
   <div id="loadbar"></div>
   <div class="hdr-right">
@@ -545,6 +615,73 @@ table.pt{width:100%; border-collapse:collapse; font-size:13px}
       </table>
     </div>
   </section>
+</div>
+<!-- ================= CALENDRIER (ordinateur uniquement) ================= -->
+<div id="cal">
+  <aside id="cPanel">
+    <div class="sec">
+      <h3>Cadence</h3>
+      <label class="f">Premier jour de chantier</label>
+      <input type="date" id="cDebut">
+      <div class="row2">
+        <div><label class="f">Chantiers / semaine</label><input type="number" id="cSem" min="1" max="50"></div>
+        <div><label class="f">Maximum / jour</label><input type="number" id="cJour" min="1" max="20"></div>
+      </div>
+      <p class="muted" id="cCadInfo"></p>
+    </div>
+    <div class="sec">
+      <h3>Jours exclus</h3>
+      <p class="muted" style="margin-top:0">Samedis et dimanches toujours exclus.</p>
+      <label class="chk"><input type="checkbox" id="cFeries"> Jours fériés (France)</label>
+      <label class="f">Périodes sans chantier</label>
+      <div id="cBloqList"></div>
+      <div class="row2">
+        <div><label class="f">Du</label><input type="date" id="cBDu"></div>
+        <div><label class="f">Au</label><input type="date" id="cBAu"></div>
+      </div>
+      <input type="text" id="cBLib" placeholder="Motif (congés, gel, saison…)" style="margin-top:6px">
+      <button class="wide" id="cBAdd">Ajouter la période</button>
+    </div>
+    <div class="sec">
+      <h3>Étapes amont <span>(jours calendaires)</span></h3>
+      <div class="cdl">
+        <label for="cVal">Validation emplacements → convention signée</label><input type="number" id="cVal" min="0">
+        <label for="cConv">Convention signée → dépôt DT-DICT</label><input type="number" id="cConv" min="0">
+        <label for="cDt">Dépôt DT-DICT → récépissés</label><input type="number" id="cDt" min="0">
+        <label for="cMarge">Marge récépissés → coulage</label><input type="number" id="cMarge" min="0">
+        <label for="cSech">Séchage béton → mise en service</label><input type="number" id="cSech" min="0">
+      </div>
+      <button class="wide" id="cExcel">Reprendre les valeurs de l'Excel</button>
+      <p class="muted" id="cExcelInfo"></p>
+    </div>
+    <div class="sec">
+      <h3>Synthèse</h3>
+      <div class="stats">
+        <div class="stat"><b id="csTot">0</b><span>Chantiers planifiés</span></div>
+        <div class="stat"><b id="csSem">0</b><span>Semaines de chantier</span></div>
+        <div class="stat"><b id="csDeb">—</b><span>Premier coulage</span></div>
+        <div class="stat"><b id="csFin">—</b><span>Dernier coulage</span></div>
+        <div class="stat"><b id="csLate" style="color:var(--danger)">0</b><span>Amont en retard</span></div>
+        <div class="stat"><b id="csSoon" style="color:var(--warn)">0</b><span>Amont sous 30 j</span></div>
+      </div>
+    </div>
+    <div class="sec">
+      <h3>Chantiers pris en compte</h3>
+      <p class="muted" id="cSrc">—</p>
+      <button class="wide" id="cFiltres">Modifier les filtres (Priorisation)</button>
+    </div>
+  </aside>
+  <div id="cMain">
+    <div id="cBar">
+      <div class="seg" id="cSeg">
+        <button data-cv="mois" class="on">Calendrier</button>
+        <button data-cv="plan">Planning détaillé</button>
+      </div>
+      <span id="cResume" class="muted"></span>
+      <div id="cLeg"></div>
+    </div>
+    <div id="cScroll"><div class="cvide"><span class="spin" style="display:inline-block;vertical-align:-2px;margin-right:8px"></span>Chargement des données…</div></div>
+  </div>
 </div>
 <div id="overlay"></div>
 
@@ -828,6 +965,7 @@ async function loadFromUrl(url){
 
 function parseWorkbook(data){
   const wb = XLSX.read(data, {type:'array', cellDates:true});
+  calLireExcel(wb);
   parsePrio(wb);
   const name = CONFIG.SHEET_NAME && wb.SheetNames.includes(CONFIG.SHEET_NAME)
     ? CONFIG.SHEET_NAME : wb.SheetNames[0];
@@ -2000,6 +2138,7 @@ function prioRender(o={}){
       <td class="gps">${p.lat!==null ? `${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}` : '<span class="nogps-chip">sans coordonnées</span>'}</td>
     </tr>`).join('')
     : `<tr><td colspan="7" class="empty">Aucun chantier ne correspond aux filtres.</td></tr>`;
+  calRender();
 
   if(!pmap) return;   // la carte est créée à la première ouverture de l'onglet
   prioCarte(o.fit);
@@ -2102,20 +2241,22 @@ function prioCsv(){
      '﻿' + t.map(l=>l.map(e).join(';')).join('\n'), 'text/csv;charset=utf-8');
 }
 
-/* ---------- Onglets : la priorisation n'existe que sur ordinateur ---------- */
+/* ---------- Onglets : priorisation et calendrier n'existent que sur ordinateur ---------- */
 const mqOrdi = matchMedia('(min-width:1025px) and (hover:hover) and (pointer:fine)');
 function setVue(v){
-  if(v==='prio' && !mqOrdi.matches) v = 'terrain';
+  if(v!=='terrain' && !mqOrdi.matches) v = 'terrain';
   document.body.classList.toggle('v-prio', v==='prio');
+  document.body.classList.toggle('v-cal', v==='cal');
   document.querySelectorAll('#tabs button').forEach(b=> b.classList.toggle('on', b.dataset.vue===v));
   if(v==='prio'){
     initPrioMap();
     setTimeout(()=> pmap.invalidateSize(), 0);
-  } else setTimeout(()=>{ map.invalidateSize(); if(!refresh._zoomed && rows.length) refresh(); }, 0);
-  history.replaceState(null, '', v==='prio' ? '#priorisation' : location.pathname + location.search);
+  } else if(v==='cal') calRender();
+  else setTimeout(()=>{ map.invalidateSize(); if(!refresh._zoomed && rows.length) refresh(); }, 0);
+  history.replaceState(null, '', v==='prio' ? '#priorisation' : v==='cal' ? '#calendrier' : location.pathname + location.search);
 }
 document.querySelectorAll('#tabs button').forEach(b=> b.onclick = ()=> setVue(b.dataset.vue));
-const surChangeEcran = ()=>{ if(!mqOrdi.matches && document.body.classList.contains('v-prio')) setVue('terrain'); };
+const surChangeEcran = ()=>{ if(!mqOrdi.matches && /v-(prio|cal)/.test(document.body.className)) setVue('terrain'); };
 if(mqOrdi.addEventListener) mqOrdi.addEventListener('change', surChangeEcran); else mqOrdi.addListener(surChangeEcran);
 
 /* ---------- Événements de la vue priorisation ---------- */
@@ -2141,6 +2282,297 @@ document.querySelectorAll('.pt th').forEach(th=> th.onclick = ()=>{
 document.getElementById('pBody').addEventListener('click', e=>{
   const tr = e.target.closest('tr[data-i]');
   if(tr) prioSelect(+tr.dataset.i, {fly:true});
+});
+
+/* =======================================================================
+   CALENDRIER — place les chantiers retenus par les filtres de la
+   priorisation (ordre du rang) sur les jours ouvrés, selon une cadence
+   (vue réservée à l'ordinateur)
+   ======================================================================= */
+const CAL_DEF = {debut:'', sem:3, jour:1, feries:true, bloq:[], val:30, conv:5, dt:15, marge:5, sech:7};
+const CAL_CLE = 'ncpa_calendrier';
+let calExcel = {};          // valeurs lues dans l'onglet RETROPLANNING
+let calP = null;            // réglages en cours (mémorisés dans ce navigateur)
+let calPlan = [];
+let calVue = 'mois';
+
+// dates « à midi » : pas de décalage d'un jour aux changements d'heure
+const calJ = (y, m, d) => new Date(y, m, d, 12);
+const calPlus = (dt, n) => calJ(dt.getFullYear(), dt.getMonth(), dt.getDate() + n);
+const calIso = dt => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+const calDeIso = s => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || ''); return m ? calJ(+m[1], m[2]-1, +m[3]) : null; };
+const calLundi = dt => calPlus(dt, -((dt.getDay()+6) % 7));
+const calFr = (dt, o) => dt.toLocaleDateString('fr-FR', o || {day:'2-digit', month:'2-digit', year:'2-digit'});
+const calAuj = () => { const n = new Date(); return calJ(n.getFullYear(), n.getMonth(), n.getDate()); };
+function calSemaine(dt){   // numéro de semaine ISO
+  const jeudi = calPlus(dt, 3 - (dt.getDay()+6) % 7), j4 = calJ(jeudi.getFullYear(), 0, 4);
+  return 1 + Math.round(((jeudi - j4) / 864e5 - 3 + (j4.getDay()+6) % 7) / 7);
+}
+
+const calFeriesCache = {};
+function calFeries(an){
+  if(calFeriesCache[an]) return calFeriesCache[an];
+  // dimanche de Pâques (algorithme de Meeus)
+  const a = an%19, b = Math.floor(an/100), c = an%100, d = Math.floor(b/4), e = b%4,
+        f = Math.floor((b+8)/25), g = Math.floor((b-f+1)/3), h = (19*a+b-d-g+15)%30,
+        i = Math.floor(c/4), k = c%4, l = (32+2*e+2*i-h-k)%7, m = Math.floor((a+11*h+22*l)/451),
+        mois = Math.floor((h+l-7*m+114)/31), jr = (h+l-7*m+114)%31 + 1;
+  const paques = calJ(an, mois-1, jr), r = {};
+  [[calJ(an,0,1),'Jour de l\'an'], [calPlus(paques,1),'Lundi de Pâques'], [calJ(an,4,1),'Fête du Travail'],
+   [calJ(an,4,8),'Victoire 1945'], [calPlus(paques,39),'Ascension'], [calPlus(paques,50),'Lundi de Pentecôte'],
+   [calJ(an,6,14),'Fête nationale'], [calJ(an,7,15),'Assomption'], [calJ(an,10,1),'Toussaint'],
+   [calJ(an,10,11),'Armistice'], [calJ(an,11,25),'Noël']].forEach(([dt, n])=> r[calIso(dt)] = n);
+  return calFeriesCache[an] = r;
+}
+
+function calExclu(dt){
+  const s = calIso(dt);
+  if(calP.feries){ const n = calFeries(dt.getFullYear())[s]; if(n) return {t:'ferie', l:n}; }
+  const b = calP.bloq.find(b=> s >= b.du && s <= b.au);
+  return b ? {t:'bloq', l:b.lib || 'Période bloquée'} : null;
+}
+
+// paramètres de l'onglet RETROPLANNING (repérés par l'intitulé de la colonne A, valeur en colonne C)
+function calLireExcel(wb){
+  calExcel = {};
+  const nom = wb.SheetNames.find(n => /^retroplanning$/i.test(n.trim()));
+  if(nom){
+    const lignes = XLSX.utils.sheet_to_json(wb.Sheets[nom], {header:1, defval:''});
+    const lire = re => { const l = lignes.find(r => re.test(String(r[0]))); return l ? l[2] : ''; };
+    const v = lire(/date de d[ée]part/i);
+    if(v instanceof Date){ const t = new Date(v.getTime() + 12*3600e3); calExcel.debut = calIso(calJ(t.getFullYear(), t.getMonth(), t.getDate())); }
+    const q = nb(lire(/^cadence/i));
+    if(q) calExcel.sem = Math.max(1, Math.round(q/2));    // l'Excel compte par quinzaine
+    [['val',/validation emplacements/i], ['conv',/^convention sign/i], ['dt',/^d[ée]p[ôo]t dt.?dict/i],
+     ['marge',/^marge/i], ['sech',/^s[ée]chage/i]].forEach(([k, re])=>{ const n = nb(lire(re)); if(n!==null) calExcel[k] = n; });
+  }
+  document.getElementById('cExcelInfo').textContent = nom
+    ? `Onglet « ${nom} » : départ ${calExcel.debut ? calFr(calDeIso(calExcel.debut), {day:'2-digit',month:'2-digit',year:'numeric'}) : '—'}`
+      + `${calExcel.sem ? ', ' + calExcel.sem + ' chantiers / semaine' : ''}.`
+    : 'Onglet RETROPLANNING introuvable : valeurs par défaut.';
+  if(!calP) calInit();
+}
+
+function calInit(){
+  let mem = null;
+  try { mem = JSON.parse(localStorage.getItem(CAL_CLE)); } catch(e){}
+  calP = Object.assign({}, CAL_DEF, calExcel, mem || {});
+  if(!calDeIso(calP.debut)) calP.debut = calIso(calPlus(calLundi(calAuj()), 7));
+  calVersChamps();
+}
+function calSauver(){ try { localStorage.setItem(CAL_CLE, JSON.stringify(calP)); } catch(e){} }
+
+const CAL_CHAMPS = {cDebut:'debut', cSem:'sem', cJour:'jour', cVal:'val', cConv:'conv', cDt:'dt', cMarge:'marge', cSech:'sech'};
+function calVersChamps(){
+  Object.entries(CAL_CHAMPS).forEach(([id, k])=> document.getElementById(id).value = calP[k]);
+  document.getElementById('cFeries').checked = calP.feries;
+  document.getElementById('cBloqList').innerHTML = calP.bloq.length ? calP.bloq.map((b, j)=>`
+    <div class="cbl"><span>${esc(b.lib || 'Période bloquée')}<small>${calFr(calDeIso(b.du))} → ${calFr(calDeIso(b.au))}</small></span>
+      <button data-j="${j}" title="Supprimer cette période">×</button></div>`).join('')
+    : '<p class="muted" style="margin:0 0 6px">Aucune.</p>';
+}
+
+function calDepuisChamps(){
+  const debut = document.getElementById('cDebut').value;
+  if(calDeIso(debut)) calP.debut = debut;
+  Object.entries(CAL_CHAMPS).forEach(([id, k])=>{
+    if(k==='debut') return;
+    const v = Math.round(nb(document.getElementById(id).value) ?? NaN);
+    if(!isNaN(v)) calP[k] = Math.max(k==='sem' || k==='jour' ? 1 : 0, v);
+  });
+  calP.feries = document.getElementById('cFeries').checked;
+  calSauver();
+  calVersChamps();
+  calRender();
+}
+
+// chantiers N par semaine, au plus M par jour, étalés sur les jours ouvrés disponibles
+function calPlanifier(liste){
+  const plan = [], auj = calAuj(), debut = calDeIso(calP.debut);
+  let k = 0;
+  for(let lundi = calLundi(debut), garde = 0; k < liste.length && garde < 1040; lundi = calPlus(lundi, 7), garde++){
+    const jours = [0,1,2,3,4].map(d=> calPlus(lundi, d)).filter(j=> j >= debut && !calExclu(j));
+    const D = jours.length;
+    if(!D) continue;
+    const n = Math.min(calP.sem, D * calP.jour, liste.length - k);
+    const parJour = Array(D).fill(Math.floor(n / D));
+    for(let i = 0; i < n % D; i++) parJour[Math.floor((i + .5) * D / (n % D))]++;
+    jours.forEach((j, d)=>{ for(let c = 0; c < parJour[d]; c++) plan.push({p:liste[k++], coul:j}); });
+  }
+  plan.forEach(x=>{
+    x.rec  = calPlus(x.coul, -calP.marge);
+    x.dep  = calPlus(x.rec,  -calP.dt);
+    x.conv = calPlus(x.dep,  -calP.conv);
+    x.renc = calPlus(x.conv, -calP.val);
+    x.mes  = calPlus(x.coul,  calP.sech);
+    x.st = x.renc < auj ? 'late' : x.renc < calPlus(auj, 30) ? 'soon' : 'ok';
+  });
+  return {plan, reste: liste.length - k};
+}
+
+const CAL_ST = {late:'⚠ Amont à lancer', soon:'Bientôt', ok:'OK'};
+
+function calRender(){
+  if(!calP) return;
+  const scroll = document.getElementById('cScroll');
+  if(!prio){
+    scroll.innerHTML = `<div class="cvide">Onglet « ${esc(CONFIG.PRIO_SHEET)} » non chargé : aucun chantier à planifier.</div>`;
+    return;
+  }
+  const liste = pVisibles.slice().sort((a, b)=> a.rang - b.rang);
+  const {plan, reste} = calPlanifier(liste);
+  calPlan = plan;
+
+  const parSemMax = Math.min(calP.sem, 5 * calP.jour);
+  document.getElementById('cCadInfo').innerHTML = (calP.sem > 5 * calP.jour
+    ? `<b style="color:var(--warn)">Plafonné à ${parSemMax} par semaine</b> (5 jours × ${calP.jour} par jour). `
+    : '') + `Soit environ ${Math.round(parSemMax * 52 / 12)} chantiers par mois, hors jours exclus.`;
+  document.getElementById('cSrc').textContent =
+    `${liste.length} chantier${liste.length>1?'s':''} sur ${prio.length}, selon les filtres de l'onglet Priorisation, placés dans l'ordre du rang.`;
+  const sems = new Set(plan.map(x=> calIso(calLundi(x.coul))));
+  document.getElementById('csTot').textContent = plan.length;
+  document.getElementById('csSem').textContent = sems.size;
+  document.getElementById('csDeb').textContent = plan.length ? calFr(plan[0].coul) : '—';
+  document.getElementById('csFin').textContent = plan.length ? calFr(plan[plan.length-1].coul) : '—';
+  document.getElementById('csLate').textContent = plan.filter(x=> x.st==='late').length;
+  document.getElementById('csSoon').textContent = plan.filter(x=> x.st==='soon').length;
+  document.getElementById('cResume').innerHTML = plan.length
+    ? `<b>${plan.length}</b> chantiers du ${calFr(plan[0].coul, {day:'numeric', month:'long', year:'numeric'})}`
+      + ` au ${calFr(plan[plan.length-1].coul, {day:'numeric', month:'long', year:'numeric'})}`
+      + (reste ? ` · <b style="color:var(--danger)">${reste} non placés</b>` : '')
+    : '';
+
+  if(!plan.length){
+    scroll.innerHTML = '<div class="cvide">Aucun chantier ne correspond aux filtres de l\'onglet Priorisation.</div>';
+    document.getElementById('cLeg').innerHTML = '';
+    return;
+  }
+  const garde = scroll.scrollTop;
+  if(calVue === 'mois') calMois(scroll); else calTableau(scroll);
+  scroll.scrollTop = garde;
+}
+
+function calMois(scroll){
+  const parJour = {}, parSem = {};
+  calPlan.forEach(x=>{
+    (parJour[calIso(x.coul)] ||= []).push(x);
+    const s = calIso(calLundi(x.coul)); parSem[s] = (parSem[s] || 0) + 1;
+  });
+  const auj = calIso(calAuj()), d0 = calPlan[0].coul, d1 = calPlan[calPlan.length-1].coul;
+  const chip = x => `<div class="cchip" data-i="${x.p.i}" style="border-left-color:${x.p.ty.c}"
+      title="N° ${esc(x.p.rang)} · ${esc(x.p.commune)}&#10;${esc(x.p.typeBrut || x.p.ty.l)}&#10;Rencontre élus au plus tard : ${calFr(x.renc)} (${CAL_ST[x.st]})">
+      <b>${esc(x.p.rang)}</b><em>${esc(x.p.commune)}</em>${x.st!=='ok' ? `<span class="al ${x.st}">⚠</span>` : ''}</div>`;
+  let html = '';
+  for(let m = calJ(d0.getFullYear(), d0.getMonth(), 1); m <= d1; m = calJ(m.getFullYear(), m.getMonth()+1, 1)){
+    const fin = calJ(m.getFullYear(), m.getMonth()+1, 0);
+    const nMois = calPlan.filter(x=> x.coul >= m && x.coul <= fin).length;
+    const titre = calFr(m, {month:'long', year:'numeric'});
+    html += `<div class="cmois"><h4>${titre[0].toUpperCase() + titre.slice(1)}<span>${nMois} chantier${nMois>1?'s':''}</span></h4>
+      <div class="cgrid"><div class="hd"></div>${['Lun','Mar','Mer','Jeu','Ven'].map(j=>`<div class="hd">${j}</div>`).join('')}`;
+    for(let l = calLundi(m); l <= fin; l = calPlus(l, 7)){
+      const n = parSem[calIso(l)] || 0;
+      html += `<div class="cwk" title="Semaine ${calSemaine(l)} : ${n} chantier${n>1?'s':''}">S${calSemaine(l)}${n ? `<b>${n}</b>` : ''}</div>`;
+      for(let d = 0; d < 5; d++){
+        const dt = calPlus(l, d), s = calIso(dt);
+        if(dt.getMonth() !== m.getMonth()){ html += '<div class="cday hors"></div>'; continue; }
+        const ex = calExclu(dt);
+        html += `<div class="cday${ex ? ' ' + ex.t : ''}${s===auj ? ' auj' : ''}"><span class="dn">${dt.getDate()}</span>
+          ${ex ? `<span class="lib">${esc(ex.l)}</span>` : ''}${(parJour[s] || []).map(chip).join('')}</div>`;
+      }
+    }
+    html += '</div></div>';
+  }
+  scroll.innerHTML = `<div class="cmois-grid">${html}</div>`;
+  document.getElementById('cLeg').innerHTML = PRIO_TYPES.filter(t=> calPlan.some(x=> x.p.ty.k===t.k))
+    .map(t=>`<span><i style="background:var(${t.c})"></i>${t.l}</span>`).join('')
+    + '<span><i style="background:repeating-linear-gradient(135deg,#f4f5f6 0 3px,#d5d8db 3px 6px)"></i>Férié / bloqué</span>'
+    + '<span><b style="color:var(--danger)">⚠</b> Amont en retard ou sous 30 j</span>';
+}
+
+function calTableau(scroll){
+  const t0 = Math.min(...calPlan.map(x=> +x.renc), +calAuj()), t1 = Math.max(...calPlan.map(x=> +x.mes));
+  const pct = dt => ((dt - t0) / (t1 - t0 || 1) * 100).toFixed(2) + '%';
+  const seg = (cls, a, b, lib) => `<span class="${cls}" style="left:${pct(a)};width:calc(${pct(b)} - ${pct(a)})" title="${lib}"></span>`;
+  const auj = calAuj();
+  const jAuj = auj >= t0 && auj <= t1 ? `<span class="g-auj" style="left:${pct(auj)}" title="Aujourd'hui"></span>` : '';
+  let axe = '';
+  for(let m = calJ(new Date(t0).getFullYear(), new Date(t0).getMonth()+1, 1); m <= t1; m = calJ(m.getFullYear(), m.getMonth()+1, 1))
+    axe += `<span style="left:${pct(m)}">${calFr(m, {month:'short'})}${m.getMonth()===0 ? ' ' + m.getFullYear() : ''}</span>`;
+  const late = (dt, x) => dt < auj && x.st==='late' ? ' late' : '';
+  scroll.innerHTML = `<table class="pt"><thead><tr>
+      <th>N°</th><th>Commune</th><th>Type</th><th>Sem.</th><th>Coulage</th>
+      <th title="Rencontre élus / validation des emplacements, au plus tard">Rencontre élus</th>
+      <th title="Convention signée, au plus tard">Convention</th><th title="Dépôt DT-DICT, au plus tard">Dépôt DT-DICT</th>
+      <th title="Récépissés DT-DICT, au plus tard">Récépissés</th><th>Mise en service</th><th>Statut amont</th>
+      <th class="gth"><div class="gt axe">${axe}${jAuj}</div></th>
+    </tr></thead><tbody>${calPlan.map(x=>`
+    <tr data-i="${x.p.i}">
+      <td>${pmHtml(x.p, ' mini')}</td>
+      <td class="com">${esc(x.p.commune)}</td>
+      <td><span class="ty" title="${esc(x.p.typeBrut)}"><span class="dot" style="background:${x.p.ty.c}"></span>${esc(typeCourt(x.p))}</span></td>
+      <td>S${calSemaine(x.coul)}</td>
+      <td class="dt"><b>${calFr(x.coul, {weekday:'short', day:'2-digit', month:'2-digit', year:'2-digit'})}</b></td>
+      <td class="dt${late(x.renc, x)}">${calFr(x.renc)}</td>
+      <td class="dt${late(x.conv, x)}">${calFr(x.conv)}</td>
+      <td class="dt${late(x.dep, x)}">${calFr(x.dep)}</td>
+      <td class="dt${late(x.rec, x)}">${calFr(x.rec)}</td>
+      <td class="dt">${calFr(x.mes)}</td>
+      <td><span class="cst ${x.st}">${CAL_ST[x.st]}</span></td>
+      <td><div class="gt">
+        ${seg('g-val', x.renc, x.conv, 'Validation → convention')}${seg('g-conv', x.conv, x.dep, 'Convention → dépôt DT-DICT')}
+        ${seg('g-dt', x.dep, x.rec, 'DT-DICT → récépissés')}${seg('g-rec', x.rec, x.coul, 'Marge avant coulage')}
+        ${seg('g-sech', x.coul, x.mes, 'Séchage → mise en service')}
+        <span class="g-c" style="left:${pct(x.coul)}" title="Coulage le ${calFr(x.coul)}"></span>${jAuj}
+      </div></td>
+    </tr>`).join('')}</tbody></table>`;
+  document.getElementById('cLeg').innerHTML = [['g-val','Validation → convention'], ['g-conv','Convention → DT-DICT'],
+    ['g-dt','DT-DICT → récépissés'], ['g-rec','Marge'], ['g-sech','Séchage']]
+    .map(([c, l])=>`<span><i class="${c}"></i>${l}</span>`).join('')
+    + '<span><i style="background:var(--rouge);width:3px"></i>Coulage</span>'
+    + '<span><i style="border-left:1.5px dashed var(--danger);width:0;border-radius:0"></i>Aujourd\'hui</span>';
+}
+
+// clic sur un chantier : on le situe dans l'onglet Priorisation
+function calVoir(i){
+  setVue('prio');
+  setTimeout(()=> prioSelect(i, {fly:true, scroll:true}), 80);
+}
+
+/* ---------- Événements de la vue calendrier ---------- */
+[...Object.keys(CAL_CHAMPS), 'cFeries'].forEach(id=>
+  document.getElementById(id).addEventListener('change', calDepuisChamps));
+document.getElementById('cBAdd').onclick = ()=>{
+  let du = document.getElementById('cBDu').value, au = document.getElementById('cBAu').value || du;
+  if(!calDeIso(du)) return toast('Indique au moins la date de début de la période');
+  if(au < du) [du, au] = [au, du];
+  calP.bloq.push({du, au, lib: document.getElementById('cBLib').value.trim()});
+  calP.bloq.sort((a, b)=> a.du.localeCompare(b.du));
+  ['cBDu','cBAu','cBLib'].forEach(id=> document.getElementById(id).value = '');
+  calSauver(); calVersChamps(); calRender();
+};
+document.getElementById('cBloqList').addEventListener('click', e=>{
+  const b = e.target.closest('button[data-j]');
+  if(!b) return;
+  calP.bloq.splice(+b.dataset.j, 1);
+  calSauver(); calVersChamps(); calRender();
+});
+document.getElementById('cExcel').onclick = ()=>{
+  const {bloq, feries, jour} = calP;
+  calP = Object.assign({}, CAL_DEF, calExcel, {bloq, feries, jour});
+  if(!calDeIso(calP.debut)) calP.debut = calIso(calPlus(calLundi(calAuj()), 7));
+  calSauver(); calVersChamps(); calRender();
+  toast('Date de départ, cadence et délais repris de l\'Excel');
+};
+document.getElementById('cFiltres').onclick = ()=> setVue('prio');
+document.querySelectorAll('#cSeg button').forEach(b=> b.onclick = ()=>{
+  calVue = b.dataset.cv;
+  document.querySelectorAll('#cSeg button').forEach(x=> x.classList.toggle('on', x===b));
+  document.getElementById('cScroll').scrollTop = 0;
+  calRender();
+});
+document.getElementById('cScroll').addEventListener('click', e=>{
+  const el = e.target.closest('[data-i]');
+  if(el) calVoir(+el.dataset.i);
 });
 
 /* =======================================================================
@@ -2200,6 +2632,7 @@ document.getElementById('rapClose').onclick = ()=> document.getElementById('rapp
 window.addEventListener('resize', ()=>{ if(document.getElementById('rapport').classList.contains('show')) ajusterZoom(); });
 
 if(location.hash === '#priorisation') setVue('prio');
+else if(location.hash === '#calendrier') setVue('cal');
 loadReleves();
 loadFromUrl(CONFIG.SOURCE_XLSX);
 </script>
