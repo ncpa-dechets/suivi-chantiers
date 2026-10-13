@@ -367,9 +367,13 @@ body.v-phase #phase{display:grid}
 #hPanel .phx-h button{min-height:30px; padding:2px 9px; font-size:16px; line-height:1; border:none; background:none; color:var(--gris)}
 #hPanel .phx-h button:hover{color:var(--danger); background:#fff}
 .phx .fin-ouv{min-height:38px; display:flex; align-items:center; font-size:12.5px; color:var(--gris); font-style:italic}
-.phx .ry{display:flex; gap:4px}
-#hPanel .phx .ry input{flex:1 1 auto; text-align:center; font-weight:700; min-width:0}
-#hPanel .phx .ry button{flex:0 0 40px; padding:0; font-size:18px; background:#fff}
+.ry{display:flex; gap:4px}
+#hPanel .ry input{flex:1 1 auto; text-align:center; font-weight:700; min-width:0}
+#hPanel .ry button{flex:0 0 40px; padding:0; font-size:18px; background:#fff}
+.dur{display:grid; grid-template-columns:1fr 128px; align-items:center; gap:6px; margin-bottom:7px}
+.dur > span{font-size:13px; font-weight:600; line-height:1.25; display:flex; flex-wrap:wrap; align-items:center; gap:0 5px}
+.dur > span small{flex-basis:100%; font-weight:400; font-size:11.5px; color:var(--gris)}
+.dur .dot{width:9px; height:9px; flex-basis:9px}
 .phx .cap{font-size:12px; color:var(--gris); margin:6px 0 0; line-height:1.4}
 .phx .cap b{color:#22262b}
 .cbl{display:flex; align-items:center; gap:6px; font-size:12.5px; background:var(--fond); border:1px solid var(--bord);
@@ -615,14 +619,28 @@ body.v-phase #phase{display:grid}
 <div id="phase">
   <aside id="hPanel">
     <div class="sec">
-      <h3>Phases <span>(rythme en dalles / semaine)</span></h3>
+      <h3>Phases <span>(rythme en dalles simples / semaine)</span></h3>
       <div id="hPhases"></div>
       <div class="row2">
         <button id="hAdd">+ Ajouter une phase</button>
         <button id="hReset" title="Revenir aux 3 phases de départ (01/11/2026, 01/04/2027, 02/11/2027)">Réinitialiser</button>
       </div>
-      <p class="muted">Les chantiers sont répartis dans l'ordre du rang : chaque phase reçoit autant de chantiers que sa capacité
-        (semaines ouvrées × rythme), la dernière reçoit tous les chantiers restants.</p>
+      <p class="muted">Les chantiers sont répartis dans l'ordre du rang : chaque phase reçoit des chantiers tant que sa capacité
+        en jours de chantier (jours ouvrés × rythme × durée d'une dalle simple ÷ 5) le permet, la dernière reçoit tous les chantiers restants.</p>
+    </div>
+    <div class="sec" id="hDur">
+      <h3>Durée d'un chantier <span>(jours ouvrés)</span></h3>
+      <div class="dur"><span><i class="dot" style="background:var(--verre)"></i><i class="dot" style="background:var(--carton)"></i>Dalle simple
+          <small>Borne à verre, cabane à cartons, autre</small></span>
+        <div class="ry"><button data-dpas="-0.5" title="Une demi-journée de moins">−</button>
+          <input type="number" data-d="simple" min="0.5" max="15" step="any" aria-label="Durée d'une dalle simple (jours)">
+          <button data-dpas="0.5" title="Une demi-journée de plus">+</button></div></div>
+      <div class="dur"><span><i class="dot" style="background:var(--pdr)"></i>Dalle PDR
+          <small>Point de regroupement, claustra</small></span>
+        <div class="ry"><button data-dpas="-0.5" title="Une demi-journée de moins">−</button>
+          <input type="number" data-d="pdr" min="0.5" max="15" step="any" aria-label="Durée d'une dalle PDR (jours)">
+          <button data-dpas="0.5" title="Une demi-journée de plus">+</button></div></div>
+      <p class="muted" id="hDurInfo"></p>
     </div>
     <div class="sec">
       <h3>Jours exclus</h3>
@@ -2268,7 +2286,7 @@ document.getElementById('pBody').addEventListener('click', e=>{
    rythme de dalles par semaine ; la dernière phase reçoit le reste
    (vue réservée à l'ordinateur)
    ======================================================================= */
-const PH_DEF = {feries:true, bloq:[], phases:[
+const PH_DEF = {feries:true, bloq:[], duree:{simple:2, pdr:3.5}, phases:[
   {nom:'Phase 1', du:'2026-11-01', au:'2027-03-31', rythme:2.5},
   {nom:'Phase 2', du:'2027-04-01', au:'2027-11-01', rythme:2.5},
   {nom:'Phase 3', du:'2027-11-02', au:'',           rythme:2.5}
@@ -2336,11 +2354,17 @@ function phLireExcel(wb){
 }
 const phDelaiAmont = () => phAmont.val + phAmont.conv + phAmont.dt + phAmont.marge;
 
+// durée d'un chantier en jours ouvrés : une dalle PDR (claustra) demande plus de travail qu'une dalle simple
+const phDuree = p => p.ty.k === 'pdr' ? phP.duree.pdr : phP.duree.simple;
+// jours de chantier abattus par jour ouvré : « rythme » dalles simples par semaine de 5 jours
+const phParJour = f => f.rythme * phP.duree.simple / 5;
+
 function phInit(){
   let mem = null;
   try { mem = JSON.parse(localStorage.getItem(PH_CLE)); } catch(e){}
   phP = JSON.parse(JSON.stringify(PH_DEF));
   if(mem && Array.isArray(mem.phases) && mem.phases.length) Object.assign(phP, mem);
+  phP.duree = Object.assign({}, PH_DEF.duree, phP.duree);
   phVersChamps();
 }
 function phSauver(){ try { localStorage.setItem(PH_CLE, JSON.stringify(phP)); } catch(e){} }
@@ -2356,50 +2380,61 @@ function phVersChamps(){
         <div><label class="f">Au</label>${j < n-1 ? `<input type="date" data-k="au" value="${esc(f.au)}">`
           : '<div class="fin-ouv">dernier chantier</div>'}</div>
       </div>
-      <label class="f">Dalles par semaine</label>
+      <label class="f">Dalles simples par semaine</label>
       <div class="ry"><button data-pas="-0.5" title="Ralentir d'une demi-dalle par semaine">−</button>
-        <input type="number" data-k="rythme" min="0.5" max="25" step="any" value="${f.rythme}" aria-label="Dalles par semaine">
+        <input type="number" data-k="rythme" min="0.5" max="25" step="any" value="${f.rythme}" aria-label="Dalles simples par semaine">
         <button data-pas="0.5" title="Accélérer d'une demi-dalle par semaine">+</button></div>
       <p class="cap" data-cap="${j}"></p>
     </div>`).join('');
   document.getElementById('hFeries').checked = phP.feries;
+  document.querySelectorAll('#hDur [data-d]').forEach(el=> el.value = phP.duree[el.dataset.d]);
+  const d = phP.duree, eq = d.pdr / d.simple;
+  document.getElementById('hDurInfo').textContent = d.pdr === d.simple
+    ? 'Toutes les dalles ont la même durée.'
+    : `Une dalle PDR compte pour ${phNb(eq, 2)} dalle${phS(eq)} simple${phS(eq)} dans le rythme des phases.`;
   document.getElementById('hBloqList').innerHTML = phP.bloq.length ? phP.bloq.map((b, j)=>`
     <div class="cbl"><span>${esc(b.lib || 'Période sans chantier')}<small>${phFr(phDeIso(b.du))} → ${phFr(phDeIso(b.au))}</small></span>
       <button data-j="${j}" title="Supprimer cette période">×</button></div>`).join('')
     : '<p class="muted" style="margin:0 0 6px">Aucune.</p>';
 }
 
-// chaque phase bornée prend « jours ouvrés / 5 × rythme » chantiers ; la dernière prend le reste
+// capacité d'une phase bornée = jours ouvrés × rythme × durée d'une dalle simple ÷ 5 (en jours de chantier) ;
+// les chantiers y entrent dans l'ordre du rang tant qu'ils tiennent, la dernière phase prend le reste
 function phCalculer(liste){
   const auj = phAuj(), n = phP.phases.length;
   let k = 0, finPrec = null;
   return phP.phases.map((f, j)=>{
-    const der = j === n-1, du = phDeIso(f.du);
-    const r = {f, j, c:phCoul(j), der, du, au:null, ouvres:0, cap:0, items:[], al:[]};
+    const der = j === n-1, du = phDeIso(f.du), parJour = phParJour(f);
+    const r = {f, j, c:phCoul(j), der, du, au:null, ouvres:0, cap:0, charge:0, items:[], dates:[], al:[]};
     if(!du){ r.al.push(['late', 'Date de début à renseigner.']); return r; }
     if(finPrec && du <= finPrec) r.al.push(['', `Chevauche la phase précédente (fin le ${phFr(finPrec)}).`]);
     if(der){
-      const reste = liste.length - k;
       r.items = liste.slice(k); k = liste.length;
-      // fin estimée : jour ouvré où le cumul (rythme / 5 par jour) couvre les chantiers restants
+      r.charge = r.items.reduce((t, p)=> t + phDuree(p), 0);
+      // fin estimée : jour ouvré où le cumul des jours de chantier couvre les chantiers restants
       let cumul = 0, d = phPlus(du, -1);
-      for(let garde = 0; cumul < reste - 1e-9 && garde < 7300; garde++){
+      for(let garde = 0; cumul < r.charge - 1e-9 && garde < 7300; garde++){
         d = phPlus(d, 1);
-        if(phOuvre(d)){ cumul += f.rythme / 5; r.ouvres++; }
+        if(phOuvre(d)){ cumul += parJour; r.ouvres++; }
       }
-      r.au = reste ? d : null;
-      r.cap = reste;
+      r.au = r.items.length ? d : null;
+      r.cap = r.charge;
     } else {
       r.au = phDeIso(f.au);
       if(!r.au || r.au < du) r.al.push(['late', 'Date de fin à renseigner (postérieure au début).']);
       else {
         r.ouvres = phOuvres(du, r.au);
-        r.cap = Math.floor(r.ouvres * f.rythme / 5 + 1e-9);
+        r.cap = r.ouvres * parJour;
       }
-      r.items = liste.slice(k, k + r.cap); k += r.items.length;
-      if(r.cap > r.items.length) r.al.push(['', `Capacité non utilisée : ${r.cap - r.items.length} dalle${phS(r.cap - r.items.length)}.`]);
+      while(k < liste.length && r.charge + phDuree(liste[k]) <= r.cap + 1e-9){
+        r.charge += phDuree(liste[k]); r.items.push(liste[k]); k++;
+      }
+      const libre = r.cap - r.charge;
+      if(k === liste.length && libre >= phP.duree.simple - 1e-9)
+        r.al.push(['', `Capacité non utilisée : ${phNb(libre)} jour${phS(libre)} de chantier.`]);
     }
     if(r.items.length){
+      r.dates = phDates(r, parJour);
       r.amont = phPlus(du, -phDelaiAmont());
       if(r.amont < auj) r.al.push(['late', `Démarches amont en retard : pour couler dès le ${phFr(du)}, rencontres élus et validation des emplacements attendues avant le ${phFr(r.amont)}.`]);
     }
@@ -2407,6 +2442,22 @@ function phCalculer(liste){
     return r;
   });
 }
+
+// dates estimées de chaque chantier : les jours de chantier s'enchaînent sur les jours ouvrés de la phase
+function phDates(r, parJour){
+  const jours = [], besoin = Math.ceil(r.charge / parJour - 1e-9);
+  for(let d = r.du, garde = 0; jours.length < besoin && garde < 7300; d = phPlus(d, 1), garde++)
+    if(phOuvre(d)) jours.push(d);
+  let cumul = 0;
+  return r.items.map(p=>{
+    const du = jours[Math.floor(cumul / parJour + 1e-9)];
+    cumul += phDuree(p);
+    return {du, au: jours[Math.max(0, Math.ceil(cumul / parJour - 1e-9) - 1)]};
+  });
+}
+const phPer = dt => !dt || !dt.du ? '' : +dt.du === +dt.au ? phFr(dt.du)
+  : `${phFr(dt.du, {day:'2-digit', month:'2-digit'})} → ${phFr(dt.au)}`;
+const phNbPdr = items => items.filter(p=> p.ty.k === 'pdr').length;
 
 function phRender(){
   if(!phP) return;
@@ -2424,9 +2475,9 @@ function phRender(){
     const el = document.querySelector(`#hPhases [data-cap="${r.j}"]`);
     if(!el) return;
     el.innerHTML = r.der
-      ? (r.items.length ? `<b>${r.items.length}</b> chantier${phS(r.items.length)} restant${phS(r.items.length)} → fin estimée le <b>${phFr(r.au)}</b>`
+      ? (r.items.length ? `<b>${r.items.length}</b> chantier${phS(r.items.length)} restant${phS(r.items.length)} (${phNb(r.charge)} j de chantier) → fin estimée le <b>${phFr(r.au)}</b>`
                         : 'Aucun chantier restant.')
-      : `<b>${phNb(r.ouvres / 5)}</b> semaines ouvrées → capacité <b>${r.cap}</b> dalle${phS(r.cap)}`;
+      : `<b>${phNb(r.ouvres / 5)}</b> semaines ouvrées → <b>${phNb(r.cap)}</b> j de chantier → <b>${r.items.length}</b> chantier${phS(r.items.length)}`;
   });
   document.getElementById('hSrc').textContent =
     `${phListe.length} chantier${phS(phListe.length)} sur ${prio.length}, selon les filtres de l'onglet Priorisation, répartis dans l'ordre du rang.`;
@@ -2478,9 +2529,10 @@ function phCartes(){
       <h4>${esc(r.f.nom)}<b style="color:${r.c}">${r.items.length}</b><small>chantier${phS(r.items.length)}</small></h4>
       <div class="dts">${r.du ? phFr(r.du) : '?'} → ${r.der ? (r.au ? '≈ ' + phFr(r.au) + ' (fin estimée)' : '—') : (r.au ? phFr(r.au) : '?')}</div>
       <dl>
-        <dt>Rythme</dt><dd>${phNb(r.f.rythme)} dalle${phS(r.f.rythme)} / semaine</dd>
+        <dt>Rythme</dt><dd>${phNb(r.f.rythme)} dalle${phS(r.f.rythme)} simple${phS(r.f.rythme)} / sem.</dd>
         <dt>Semaines ouvrées</dt><dd>${phNb(r.ouvres / 5)}</dd>
-        ${r.der ? '' : `<dt>Capacité</dt><dd>${r.cap} dalle${phS(r.cap)}</dd>`}
+        <dt>Jours de chantier</dt><dd>${phNb(r.charge)}${r.der ? '' : ' / ' + phNb(r.cap)}</dd>
+        ${r.items.length && r.ouvres ? `<dt>Soit en moyenne</dt><dd>${phNb(r.items.length / (r.ouvres / 5))} dalle${phS(r.items.length / (r.ouvres / 5))} / sem.</dd>` : ''}
         <dt>Communes</dt><dd>${com}</dd>
         <dt>Rangs de priorité</dt><dd>${rangs}</dd>
       </dl>
@@ -2492,21 +2544,24 @@ function phCartes(){
 
 function phTableau(){
   return `<table class="pt"><thead><tr>
-      <th title="Ordre dans la phase">#</th><th>N°</th><th>Commune</th><th>Type</th><th>Existant / à créer</th><th>Relevé</th><th>Coordonnées GPS</th>
+      <th title="Ordre dans la phase">#</th><th>N°</th><th>Commune</th><th>Type</th><th title="Jours ouvrés">Durée</th><th>Coulage estimé</th><th>Existant / à créer</th><th>Relevé</th><th>Coordonnées GPS</th>
     </tr></thead><tbody>${phRes.map(r=>`
-    <tr class="hgrp"><td colspan="7" style="border-bottom-color:${r.c}; color:${r.c}"><b>${esc(r.f.nom)}</b><span>${r.items.length} chantier${phS(r.items.length)}
-      · ${r.du ? phFr(r.du) : '?'} → ${r.der && r.au ? '≈ ' : ''}${r.au ? phFr(r.au) : '?'} · ${phNb(r.f.rythme)} dalle${phS(r.f.rythme)} / semaine</span></td></tr>
+    <tr class="hgrp"><td colspan="9" style="border-bottom-color:${r.c}; color:${r.c}"><b>${esc(r.f.nom)}</b><span>${r.items.length} chantier${phS(r.items.length)}
+      dont ${phNbPdr(r.items)} PDR · ${phNb(r.charge)} j de chantier
+      · ${r.du ? phFr(r.du) : '?'} → ${r.der && r.au ? '≈ ' : ''}${r.au ? phFr(r.au) : '?'} · ${phNb(r.f.rythme)} dalle${phS(r.f.rythme)} simple${phS(r.f.rythme)} / semaine</span></td></tr>
     ${r.items.length ? r.items.map((p, k)=>`
     <tr data-i="${p.i}"${p.lat===null ? ' class="nogps"' : ''}>
       <td class="muted">${k+1}</td>
       <td>${pmHtml(p, ' mini')}</td>
       <td class="com">${esc(p.commune)}</td>
       <td><span class="ty" title="${esc(p.typeBrut)}"><span class="dot" style="background:${p.ty.c}"></span>${esc(typeCourt(p))}</span></td>
+      <td>${phNb(phDuree(p))} j</td>
+      <td class="muted">${phPer(r.dates[k])}</td>
       <td>${etatHtml(p.etat)}</td>
       <td>${p.rv ? `<span class="badge ${badgeCls(p.rv.difficulte)}">${esc(p.rv.difficulte || 'Fait')}</span>` : '<span class="muted">—</span>'}</td>
       <td class="gps">${p.lat!==null ? `<a class="gpsl" href="${phGmaps(p)}" target="_blank" rel="noopener" title="Ouvrir dans Google Maps">${p.lat.toFixed(5)}, ${p.lon.toFixed(5)} ↗</a>`
         : '<span class="nogps-chip">sans coordonnées</span>'}</td>
-    </tr>`).join('') : '<tr><td colspan="7" class="empty">Aucun chantier dans cette phase.</td></tr>'}`).join('')}
+    </tr>`).join('') : '<tr><td colspan="9" class="empty">Aucun chantier dans cette phase.</td></tr>'}`).join('')}
   </tbody></table>`;
 }
 
@@ -2515,9 +2570,11 @@ function phExport(){
   if(!phListe.length) return toast('Aucun chantier à exporter');
   const dates = r => [r.du ? phFr(r.du) : '', r.au ? (r.der ? phFr(r.au) + ' (estimée)' : phFr(r.au)) : ''];
   const ENT = ['N° dans la phase', 'Rang de priorité', 'Ordre commune', 'Commune', 'Code INSEE', 'Type de chantier',
+               'Durée (jours ouvrés)', 'Début estimé', 'Fin estimée',
                'Existant / à créer', 'À faire', 'Latitude', 'Longitude', 'Coordonnées GPS (Google Maps)', 'Relevé terrain'];
-  const LARG = [9, 9, 9, 24, 10, 30, 18, 30, 11, 11, 26, 13];
-  const ligne = (p, k) => [k+1, p.rang, p.ordre ?? '', p.commune, p.insee, p.typeBrut || p.ty.l, p.etat, p.afaire,
+  const LARG = [9, 9, 9, 24, 10, 30, 10, 12, 12, 18, 30, 11, 11, 26, 13];
+  const ligne = (p, k, dt) => [k+1, p.rang, p.ordre ?? '', p.commune, p.insee, p.typeBrut || p.ty.l,
+    phDuree(p), dt && dt.du ? phFr(dt.du) : '', dt && dt.au ? phFr(dt.au) : '', p.etat, p.afaire,
     p.lat ?? '', p.lon ?? '', p.lat!==null ? `${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}` : 'sans coordonnées',
     p.rv ? (p.rv.difficulte || 'Fait') : 'À faire'];
 
@@ -2541,19 +2598,22 @@ function phExport(){
     [`Export du ${phFr(phAuj())} : ${phListe.length} chantiers retenus par les filtres de l'onglet Priorisation, répartis dans l'ordre du rang.`],
     ['Jours exclus : samedis, dimanches' + (phP.feries ? ', jours fériés' : '')
       + phP.bloq.map(b=> `, ${b.lib || 'période sans chantier'} (${phFr(phDeIso(b.du))} → ${phFr(phDeIso(b.au))})`).join('') + '.'],
+    [`Durée d'un chantier : dalle simple (borne à verre, cabane à cartons) ${phNb(phP.duree.simple)} j ouvrés, dalle PDR ${phNb(phP.duree.pdr)} j ouvrés.`
+      + ' Le rythme des phases est exprimé en dalles simples par semaine.'],
     [],
-    ['Phase', 'Début', 'Fin', 'Dalles / semaine', 'Semaines ouvrées', 'Capacité (dalles)', 'Chantiers affectés',
-     'Communes', 'Rangs de priorité', 'Démarches amont avant le']
-  ].concat(phRes.map(r=> [r.f.nom, ...dates(r), r.f.rythme, Math.round(r.ouvres / 5 * 10) / 10, r.der ? '' : r.cap,
-      r.items.length, new Set(r.items.map(p=> p.commune)).size,
+    ['Phase', 'Début', 'Fin', 'Dalles simples / semaine', 'Semaines ouvrées', 'Capacité (jours de chantier)',
+     'Jours de chantier affectés', 'Chantiers affectés', 'dont PDR', 'Communes', 'Rangs de priorité', 'Démarches amont avant le']
+  ].concat(phRes.map(r=> [r.f.nom, ...dates(r), r.f.rythme, Math.round(r.ouvres / 5 * 10) / 10, r.der ? '' : Math.round(r.cap * 10) / 10,
+      Math.round(r.charge * 10) / 10, r.items.length, phNbPdr(r.items), new Set(r.items.map(p=> p.commune)).size,
       r.items.length ? `${r.items[0].rang} → ${r.items[r.items.length-1].rang}` : '', r.amont ? phFr(r.amont) : '']),
-    [['Total', '', '', '', '', '', phListe.length, new Set(phListe.map(p=> p.commune)).size]]);
+    [['Total', '', '', '', '', '', Math.round(phRes.reduce((t, r)=> t + r.charge, 0) * 10) / 10, phListe.length,
+      phNbPdr(phListe), new Set(phListe.map(p=> p.commune)).size]]);
   const ws0 = XLSX.utils.aoa_to_sheet(synth);
-  ws0['!cols'] = [18, 12, 22, 15, 16, 16, 17, 10, 16, 22].map(w=> ({wch:w}));
+  ws0['!cols'] = [18, 12, 22, 15, 16, 18, 18, 17, 10, 10, 16, 22].map(w=> ({wch:w}));
   XLSX.utils.book_append_sheet(wb, ws0, 'Synthèse');
 
   const tous = phRes.flatMap(r=> r.items.map((p, k)=> ({p, k, r})));
-  XLSX.utils.book_append_sheet(wb, feuille([['Phase', ...ENT]].concat(tous.map(x=> [x.r.f.nom, ...ligne(x.p, x.k)])),
+  XLSX.utils.book_append_sheet(wb, feuille([['Phase', ...ENT]].concat(tous.map(x=> [x.r.f.nom, ...ligne(x.p, x.k, x.r.dates[x.k])])),
     tous.map(x=> x.p), 1), 'Tous les chantiers');
 
   const pris = new Set(['synthèse', 'tous les chantiers']);
@@ -2561,7 +2621,7 @@ function phExport(){
     let nom = (r.f.nom.replace(/[\[\]:*?\/\\]/g, ' ').trim() || `Phase ${r.j+1}`).slice(0, 31), base = nom;
     for(let i = 2; pris.has(nom.toLowerCase()); i++) nom = base.slice(0, 28) + ' ' + i;
     pris.add(nom.toLowerCase());
-    XLSX.utils.book_append_sheet(wb, feuille([ENT].concat(r.items.map(ligne)), r.items, 0), nom);
+    XLSX.utils.book_append_sheet(wb, feuille([ENT].concat(r.items.map((p, k)=> ligne(p, k, r.dates[k]))), r.items, 0), nom);
   });
   XLSX.writeFile(wb, `phasage_chantiers_${phIso(phAuj())}.xlsx`);
   toast('Phasage exporté');
@@ -2619,6 +2679,21 @@ document.getElementById('hReset').onclick = ()=>{
   toast('Phases de départ rétablies');
 };
 document.getElementById('hFeries').onchange = e=>{ phP.feries = e.target.checked; phMaj(); };
+const phJours = v => Math.min(15, Math.max(0.5, Math.round(v * 2) / 2));
+document.getElementById('hDur').addEventListener('change', e=>{
+  const el = e.target.closest('[data-d]');
+  if(!el) return;
+  const v = nb(el.value);
+  if(v !== null) phP.duree[el.dataset.d] = phJours(v);
+  phMaj(true);
+});
+document.getElementById('hDur').addEventListener('click', e=>{
+  const b = e.target.closest('button[data-dpas]');
+  if(!b) return;
+  const k = b.parentNode.querySelector('input').dataset.d;
+  phP.duree[k] = phJours(phP.duree[k] + +b.dataset.dpas);
+  phMaj(true);
+});
 document.getElementById('hBAdd').onclick = ()=>{
   let du = document.getElementById('hBDu').value, au = document.getElementById('hBAu').value || du;
   if(!phDeIso(du)) return toast('Indique au moins la date de début de la période');
