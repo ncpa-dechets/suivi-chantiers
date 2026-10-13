@@ -641,6 +641,20 @@ body.v-phase #phase{display:grid}
           <input type="number" data-d="pdr" min="0.5" max="15" step="any" aria-label="Durée d'une dalle PDR (jours)">
           <button data-dpas="0.5" title="Une demi-journée de plus">+</button></div></div>
       <p class="muted" id="hDurInfo"></p>
+      <label class="f">Jours en plus selon le relevé terrain</label>
+      <div class="dur"><span><span class="badge b-vig">Vigilance</span></span>
+        <div class="ry"><button data-dpas="-0.5" title="Une demi-journée de moins">−</button>
+          <input type="number" data-d="vig" min="0" max="15" step="any" aria-label="Jours en plus si relevé Vigilance">
+          <button data-dpas="0.5" title="Une demi-journée de plus">+</button></div></div>
+      <div class="dur"><span><span class="badge b-cplx">Complexe</span></span>
+        <div class="ry"><button data-dpas="-0.5" title="Une demi-journée de moins">−</button>
+          <input type="number" data-d="cplx" min="0" max="15" step="any" aria-label="Jours en plus si relevé Complexe">
+          <button data-dpas="0.5" title="Une demi-journée de plus">+</button></div></div>
+      <div class="dur"><span><span class="badge b-bloq">Bloquant</span></span>
+        <div class="ry"><button data-dpas="-0.5" title="Une demi-journée de moins">−</button>
+          <input type="number" data-d="bloq" min="0" max="15" step="any" aria-label="Jours en plus si relevé Bloquant">
+          <button data-dpas="0.5" title="Une demi-journée de plus">+</button></div></div>
+      <p class="muted">Ajoutés à la durée de base du chantier dès que son relevé terrain porte ce niveau de difficulté.</p>
     </div>
     <div class="sec">
       <h3>Jours exclus</h3>
@@ -2286,7 +2300,7 @@ document.getElementById('pBody').addEventListener('click', e=>{
    rythme de dalles par semaine ; la dernière phase reçoit le reste
    (vue réservée à l'ordinateur)
    ======================================================================= */
-const PH_DEF = {feries:true, bloq:[], duree:{simple:2, pdr:3.5}, phases:[
+const PH_DEF = {feries:true, bloq:[], duree:{simple:2, pdr:3.5, vig:0, cplx:1, bloq:2}, phases:[
   {nom:'Phase 1', du:'2026-11-01', au:'2027-03-31', rythme:2.5},
   {nom:'Phase 2', du:'2027-04-01', au:'2027-11-01', rythme:2.5},
   {nom:'Phase 3', du:'2027-11-02', au:'',           rythme:2.5}
@@ -2354,8 +2368,12 @@ function phLireExcel(wb){
 }
 const phDelaiAmont = () => phAmont.val + phAmont.conv + phAmont.dt + phAmont.marge;
 
-// durée d'un chantier en jours ouvrés : une dalle PDR (claustra) demande plus de travail qu'une dalle simple
-const phDuree = p => p.ty.k === 'pdr' ? phP.duree.pdr : phP.duree.simple;
+// durée d'un chantier en jours ouvrés : une dalle PDR (claustra) demande plus de travail qu'une dalle simple,
+// et un relevé terrain Vigilance / Complexe / Bloquant ajoute ses jours en plus
+const PH_SUPP = {Vigilance:'vig', Complexe:'cplx', Bloquant:'bloq'};
+const phBase = p => p.ty.k === 'pdr' ? phP.duree.pdr : phP.duree.simple;
+const phSupp = p => (p.rv && phP.duree[PH_SUPP[p.rv.difficulte]]) || 0;
+const phDuree = p => phBase(p) + phSupp(p);
 // jours de chantier abattus par jour ouvré : « rythme » dalles simples par semaine de 5 jours
 const phParJour = f => f.rythme * phP.duree.simple / 5;
 
@@ -2555,7 +2573,8 @@ function phTableau(){
       <td>${pmHtml(p, ' mini')}</td>
       <td class="com">${esc(p.commune)}</td>
       <td><span class="ty" title="${esc(p.typeBrut)}"><span class="dot" style="background:${p.ty.c}"></span>${esc(typeCourt(p))}</span></td>
-      <td>${phNb(phDuree(p))} j</td>
+      <td>${phSupp(p) ? `<span title="${phNb(phBase(p))} j + ${phNb(phSupp(p))} j (relevé ${esc(p.rv.difficulte)})">${phNb(phDuree(p))} j
+        <small class="muted">(+${phNb(phSupp(p))})</small></span>` : `${phNb(phDuree(p))} j`}</td>
       <td class="muted">${phPer(r.dates[k])}</td>
       <td>${etatHtml(p.etat)}</td>
       <td>${p.rv ? `<span class="badge ${badgeCls(p.rv.difficulte)}">${esc(p.rv.difficulte || 'Fait')}</span>` : '<span class="muted">—</span>'}</td>
@@ -2598,7 +2617,8 @@ function phExport(){
     [`Export du ${phFr(phAuj())} : ${phListe.length} chantiers retenus par les filtres de l'onglet Priorisation, répartis dans l'ordre du rang.`],
     ['Jours exclus : samedis, dimanches' + (phP.feries ? ', jours fériés' : '')
       + phP.bloq.map(b=> `, ${b.lib || 'période sans chantier'} (${phFr(phDeIso(b.du))} → ${phFr(phDeIso(b.au))})`).join('') + '.'],
-    [`Durée d'un chantier : dalle simple (borne à verre, cabane à cartons) ${phNb(phP.duree.simple)} j ouvrés, dalle PDR ${phNb(phP.duree.pdr)} j ouvrés.`
+    [`Durée d'un chantier : dalle simple (borne à verre, cabane à cartons) ${phNb(phP.duree.simple)} j ouvrés, dalle PDR ${phNb(phP.duree.pdr)} j ouvrés ;`
+      + ` jours en plus selon le relevé terrain : Vigilance +${phNb(phP.duree.vig)}, Complexe +${phNb(phP.duree.cplx)}, Bloquant +${phNb(phP.duree.bloq)}.`
       + ' Le rythme des phases est exprimé en dalles simples par semaine.'],
     [],
     ['Phase', 'Début', 'Fin', 'Dalles simples / semaine', 'Semaines ouvrées', 'Capacité (jours de chantier)',
@@ -2679,19 +2699,20 @@ document.getElementById('hReset').onclick = ()=>{
   toast('Phases de départ rétablies');
 };
 document.getElementById('hFeries').onchange = e=>{ phP.feries = e.target.checked; phMaj(); };
-const phJours = v => Math.min(15, Math.max(0.5, Math.round(v * 2) / 2));
+// durées de base : au moins une demi-journée ; jours en plus : zéro possible
+const phJours = (k, v) => Math.min(15, Math.max(k === 'simple' || k === 'pdr' ? 0.5 : 0, Math.round(v * 2) / 2));
 document.getElementById('hDur').addEventListener('change', e=>{
   const el = e.target.closest('[data-d]');
   if(!el) return;
   const v = nb(el.value);
-  if(v !== null) phP.duree[el.dataset.d] = phJours(v);
+  if(v !== null) phP.duree[el.dataset.d] = phJours(el.dataset.d, v);
   phMaj(true);
 });
 document.getElementById('hDur').addEventListener('click', e=>{
   const b = e.target.closest('button[data-dpas]');
   if(!b) return;
   const k = b.parentNode.querySelector('input').dataset.d;
-  phP.duree[k] = phJours(phP.duree[k] + +b.dataset.dpas);
+  phP.duree[k] = phJours(k, phP.duree[k] + +b.dataset.dpas);
   phMaj(true);
 });
 document.getElementById('hBAdd').onclick = ()=>{
