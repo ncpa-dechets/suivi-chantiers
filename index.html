@@ -2410,9 +2410,10 @@ function phVersChamps(){
   document.getElementById('hFeries').checked = phP.feries;
   document.querySelectorAll('#hDur [data-d]').forEach(el=> el.value = phP.duree[el.dataset.d]);
   const d = phP.duree, eq = d.pdr / d.simple;
-  document.getElementById('hDurInfo').textContent = d.pdr === d.simple
+  document.getElementById('hDurInfo').textContent = (d.pdr === d.simple
     ? 'Toutes les dalles ont la même durée.'
-    : `Une dalle PDR compte pour ${phNb(eq, 2)} dalle${phS(eq)} simple${phS(eq)} dans le rythme des phases.`;
+    : `Une dalle PDR compte pour ${phNb(eq, 2)} dalle${phS(eq)} simple${phS(eq)} dans le rythme des phases.`
+  ) + ' Changer la durée d\'une dalle simple ajuste le rythme des phases : la capacité des équipes reste la même.';
   document.getElementById('hBloqList').innerHTML = phP.bloq.length ? phP.bloq.map((b, j)=>`
     <div class="cbl"><span>${esc(b.lib || 'Période sans chantier')}<small>${phFr(phDeIso(b.du))} → ${phFr(phDeIso(b.au))}</small></span>
       <button data-j="${j}" title="Supprimer cette période">×</button></div>`).join('')
@@ -2422,7 +2423,7 @@ function phVersChamps(){
 // capacité d'une phase bornée = jours ouvrés × rythme × durée d'une dalle simple ÷ 5 (en jours de chantier) ;
 // les chantiers y entrent dans l'ordre du rang tant qu'ils tiennent, la dernière phase prend le reste
 function phCalculer(liste){
-  const auj = phAuj(), n = phP.phases.length;
+  const n = phP.phases.length;
   let k = 0, finPrec = null;
   return phP.phases.map((f, j)=>{
     const der = j === n-1, du = phDeIso(f.du), parJour = phParJour(f);
@@ -2457,7 +2458,6 @@ function phCalculer(liste){
     if(r.items.length){
       r.dates = phDates(r, parJour);
       r.amont = phPlus(du, -phDelaiAmont());
-      if(r.amont < auj) r.al.push(['late', `Démarches amont en retard : pour couler dès le ${phFr(du)}, rencontres élus et validation des emplacements attendues avant le ${phFr(r.amont)}.`]);
     }
     finPrec = r.au || finPrec;
     return r;
@@ -2704,19 +2704,27 @@ document.getElementById('hReset').onclick = ()=>{
 document.getElementById('hFeries').onchange = e=>{ phP.feries = e.target.checked; phMaj(); };
 // durées de base : au moins une demi-journée ; jours en plus : zéro possible
 const phJours = (k, v) => Math.min(15, Math.max(k === 'simple' || k === 'pdr' ? 0.5 : 0, Math.round(v * 2) / 2));
+// la capacité des équipes (jours de chantier par semaine) ne dépend pas de la durée d'une dalle simple :
+// si celle-ci change, le rythme en dalles simples par semaine est ajusté dans le même rapport
+function phDureeMaj(k, v){
+  const avant = phP.duree[k];
+  phP.duree[k] = phJours(k, v);
+  if(k === 'simple' && phP.duree.simple !== avant)
+    phP.phases.forEach(f=> f.rythme = Math.min(25, Math.max(0.5, Math.round(f.rythme * avant / phP.duree.simple * 100) / 100)));
+  phMaj(true);
+}
 document.getElementById('hDur').addEventListener('change', e=>{
   const el = e.target.closest('[data-d]');
   if(!el) return;
   const v = nb(el.value);
-  if(v !== null) phP.duree[el.dataset.d] = phJours(el.dataset.d, v);
-  phMaj(true);
+  if(v === null) return phMaj(true);
+  phDureeMaj(el.dataset.d, v);
 });
 document.getElementById('hDur').addEventListener('click', e=>{
   const b = e.target.closest('button[data-dpas]');
   if(!b) return;
   const k = b.parentNode.querySelector('input').dataset.d;
-  phP.duree[k] = phJours(k, phP.duree[k] + +b.dataset.dpas);
-  phMaj(true);
+  phDureeMaj(k, phP.duree[k] + +b.dataset.dpas);
 });
 document.getElementById('hBAdd').onclick = ()=>{
   let du = document.getElementById('hBDu').value, au = document.getElementById('hBAu').value || du;
