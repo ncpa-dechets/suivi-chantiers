@@ -2695,9 +2695,9 @@ function phPdf(){
   const d = phP.duree;
   const tete = `<thead><tr><th style="width:7mm">#</th><th style="width:10mm">Rang</th><th>Commune</th><th style="width:27mm">Type</th>
     <th style="width:11mm">Durée</th><th style="width:31mm">Coulage estimé</th><th style="width:28mm">Existant / à créer</th>
-    <th style="width:15mm">Relevé</th><th style="width:19mm">GPS</th></tr></thead>`;
+    <th style="width:19mm">GPS</th></tr></thead>`;
   const lignes = phRes.map(r=>`
-    <tr class="grp"><td colspan="9" style="border-bottom-color:${r.c}; color:${r.c}"><b>${esc(r.f.nom)}</b><span>${r.items.length} chantier${phS(r.items.length)}
+    <tr class="grp"><td colspan="8" style="border-bottom-color:${r.c}; color:${r.c}"><b>${esc(r.f.nom)}</b><span>${r.items.length} chantier${phS(r.items.length)}
       dont ${phNbPdr(r.items)} PDR · ${phNb(r.charge)} j de chantier · ${r.du ? phFr(r.du) : '?'} → ${r.der && r.au ? '≈ ' : ''}${r.au ? phFr(r.au) : '?'}
       · ${phNb(r.f.rythme)} dalle${phS(r.f.rythme)} simple${phS(r.f.rythme)} / sem.</span></td></tr>
     ${r.items.map((p, k)=>`<tr>
@@ -2705,10 +2705,9 @@ function phPdf(){
       <td><span class="rc-n" style="background:${p.ty.c}">${p.rang}</span></td>
       <td>${esc(p.commune)}</td>
       <td>${esc(typeCourt(p))}</td>
-      <td>${phNb(phDuree(p))} j${phSupp(p) ? `<small>dont +${phNb(phSupp(p))} relevé</small>` : ''}</td>
+      <td>${phNb(phDuree(p))} j</td>
       <td class="nw">${phPer(r.dates[k])}</td>
       <td>${etatHtml(p.etat)}</td>
-      <td>${p.rv ? `<span class="badge ${badgeCls(p.rv.difficulte)}">${esc(p.rv.difficulte || 'Fait')}</span>` : '<span class="rc-mut">À relever</span>'}</td>
       <td class="rc-gps">${p.lat!==null ? p.lat.toFixed(5) + '<br>' + p.lon.toFixed(5) : 'NC'}</td>
     </tr>`).join('')}`).join('');
   const html = `
