@@ -2841,16 +2841,14 @@ function phExport(){
 /* ---------- Export PDF : frise + fiches des phases, puis la liste des chantiers (A4) ---------- */
 // bandeau rouge, rappel des réglages, frise et fiches : communs aux deux mises en page
 function phPdfTete(){
-  const avec = phRes.filter(r=> r.items.length), fin = phRes.reduce((m, r)=> r.au && (!m || r.au > m) ? r.au : m, null);
-  const long = {day:'numeric', month:'long', year:'numeric'};
+  const avec = phRes.filter(r=> r.items.length);
   const d = phP.duree;
   return `
     <div class="r-head">
       <div>
         <div class="ey">NCPA · Dalles béton · phasage des chantiers</div>
         <h1>Phasage des chantiers</h1>
-        <div class="sub">${phListe.length} chantier${phS(phListe.length)} en ${avec.length} phase${phS(avec.length)}${avec.length
-          ? `, du ${phFr(avec[0].du, long)} au ${phFr(fin, long)} (estimation)` : ''}</div>
+        <div class="sub">${phListe.length} chantier${phS(phListe.length)} en ${avec.length} phase${phS(avec.length)}</div>
       </div>
       ${phP.fige ? `<div class="r-diff"><small>Phasage figé le</small><span class="r-pill Simple">${phFr(phDeIso(phP.fige.le))}</span></div>` : ''}
     </div>
@@ -2862,8 +2860,7 @@ function phPdfTete(){
     <div class="rh-vis">${phFrise()}${phCartes().replace('class="hcards"', `class="hcards" style="grid-template-columns:repeat(${Math.min(3, phRes.length)},1fr)"`)}</div>`;
 }
 const phPdfNote = () => `<p class="rc-note">Chantiers retenus par les filtres de l'onglet Priorisation, répartis dans l'ordre du rang. Coulages estimés sur les jours ouvrés
-      (hors week-ends${phP.feries ? ', jours fériés' : ''}${phP.bloq.length ? ' et périodes sans chantier' : ''}).
-      Démarches amont comptées ${phDelaiAmont()} jours avant le premier coulage de chaque phase. Édité le ${phFr(phAuj())}.</p>`;
+      (hors week-ends${phP.feries ? ', jours fériés' : ''}${phP.bloq.length ? ' et périodes sans chantier' : ''}).</p>`;
 const phPdfPied = pg => `<div class="r-foot">
       <span>NCPA · Direction de la maîtrise des déchets · Dalles béton, phasage des chantiers</span>
       <span>Phasage · <span class="rc-pg">${pg}</span></span></div>`;
