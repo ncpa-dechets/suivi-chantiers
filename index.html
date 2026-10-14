@@ -265,6 +265,16 @@ a.ph{display:block; text-decoration:none; color:var(--gris); text-align:center; 
 .rc-mut{color:#9aa0a6; font-style:italic}
 .rc-note{font-size:7.5pt; color:var(--gris); margin-top:2.5mm; line-height:1.35; flex:0 0 auto}
 .rc-fill{flex:1 1 auto}
+/* phasage : frise et fiches de l'écran, à la largeur de la page */
+.rh-vis{flex:0 0 auto; margin-top:4mm}
+.rh-vis .hcards{gap:3mm; margin:3mm 0 0}
+.rh-vis .hcard{padding:2.5mm 3mm}
+.rh-vis .hcard dl{margin:2mm 0 1.5mm; font-size:11.5px; gap:2px 6px}
+.rh-vis .hcard dt, .rh-vis .hcard dd{white-space:nowrap}
+.rc-t.rh-t .et{white-space:nowrap}
+.rc-t td.nw{white-space:nowrap}
+.rc-t tr.grp td{padding:3mm 1.6mm 1.2mm; border-bottom:.5mm solid; font-size:9.5pt}
+.rc-t tr.grp td span{font-weight:400; color:var(--gris); font-size:8pt; margin-left:2mm}
 @media print{
   @page{size:A4; margin:0}
   html,body{height:auto !important; overflow:visible !important; display:block !important; background:#fff !important}
@@ -361,6 +371,13 @@ table.pt{width:100%; border-collapse:collapse; font-size:13px}
 body.v-phase #body{display:none}
 body.v-phase #phase{display:grid}
 #hPanel .sec > h3 span{text-transform:none; letter-spacing:0; font-weight:400}
+#hFige{margin-bottom:12px}
+.fige-ok{background:#E8F5E9; border:1px solid #A5D6A7; border-left:5px solid var(--ok); border-radius:7px; padding:8px 10px; font-size:13px; line-height:1.4}
+.fige-ok b{color:var(--ok)}
+.fige-ok small{display:block; color:var(--gris); font-size:11.5px; margin-top:2px}
+#hPanel .fige-ok button{min-height:32px; padding:4px 10px; font-size:13px; margin-top:6px; background:#fff}
+#phase.fige .verrou input, #phase.fige .verrou label.chk{opacity:.75}
+#phase.fige .verrou button{display:none}
 .phx{background:var(--fond); border:1px solid var(--bord); border-left:5px solid; border-radius:7px; padding:8px; margin-bottom:8px}
 .phx-h{display:flex; align-items:center; gap:4px}
 #hPanel .phx-h input{flex:1 1 auto; font-weight:700; background:#fff}
@@ -388,7 +405,8 @@ body.v-phase #phase{display:grid}
 #hMain{display:flex; flex-direction:column; min-height:0; min-width:0}
 #hBar{display:flex; align-items:center; flex-wrap:wrap; gap:8px 16px; padding:8px 14px; background:#fff; border-bottom:1px solid var(--bord)}
 #hResume{font-size:13px}
-#hBar button{margin-left:auto; min-height:36px; padding:6px 14px; font-size:14px}
+#hBar .acts{margin-left:auto; display:flex; gap:8px}
+#hBar button{min-height:36px; padding:6px 14px; font-size:14px}
 #hScroll{flex:1 1 auto; overflow:auto; padding:14px}
 .cvide{padding:50px 20px; text-align:center; color:var(--gris)}
 /* frise des phases */
@@ -621,17 +639,18 @@ body.v-phase #phase{display:grid}
 <!-- ================= PHASAGE (ordinateur uniquement) ================= -->
 <div id="phase">
   <aside id="hPanel">
-    <div class="sec">
+    <div id="hFige"></div>
+    <div class="sec verrou">
       <h3>Phases <span>(rythme en dalles simples / semaine)</span></h3>
       <div id="hPhases"></div>
       <div class="row2">
         <button id="hAdd">+ Ajouter une phase</button>
-        <button id="hReset" title="Revenir aux 3 phases de départ (01/11/2026, 01/04/2027, 02/11/2027)">Réinitialiser</button>
+        <button id="hReset" title="Revenir aux 3 phases de départ (01/11/2026 à 2,5 · 01/04/2027 à 3,5 · 02/11/2027 à 3,5 dalles simples / semaine)">Réinitialiser</button>
       </div>
       <p class="muted">Les chantiers sont répartis dans l'ordre du rang : chaque phase reçoit des chantiers tant que sa capacité
         en jours de chantier (jours ouvrés × rythme × durée d'une dalle simple ÷ 5) le permet, la dernière reçoit tous les chantiers restants.</p>
     </div>
-    <div class="sec" id="hDur">
+    <div class="sec verrou" id="hDur">
       <h3>Durée d'un chantier <span>(jours ouvrés)</span></h3>
       <div class="dur"><span><i class="dot" style="background:var(--verre)"></i><i class="dot" style="background:var(--carton)"></i>Dalle simple
           <small>Borne à verre, cabane à cartons, autre</small></span>
@@ -659,18 +678,20 @@ body.v-phase #phase{display:grid}
           <button data-dpas="0.5" title="Une demi-journée de plus">+</button></div></div>
       <p class="muted">Ajoutés à la durée de base du chantier dès que son relevé terrain porte ce niveau de difficulté.</p>
     </div>
-    <div class="sec">
+    <div class="sec verrou">
       <h3>Jours exclus</h3>
       <p class="muted" style="margin-top:0">Samedis et dimanches toujours exclus.</p>
       <label class="chk"><input type="checkbox" id="hFeries"> Jours fériés (France)</label>
       <label class="f">Périodes sans chantier</label>
       <div id="hBloqList"></div>
-      <div class="row2">
-        <div><label class="f">Du</label><input type="date" id="hBDu"></div>
-        <div><label class="f">Au</label><input type="date" id="hBAu"></div>
+      <div id="hBForm">
+        <div class="row2">
+          <div><label class="f">Du</label><input type="date" id="hBDu"></div>
+          <div><label class="f">Au</label><input type="date" id="hBAu"></div>
+        </div>
+        <input type="text" id="hBLib" placeholder="Motif (congés, gel, saison…)" style="margin-top:6px">
+        <button class="wide" id="hBAdd">Ajouter la période</button>
       </div>
-      <input type="text" id="hBLib" placeholder="Motif (congés, gel, saison…)" style="margin-top:6px">
-      <button class="wide" id="hBAdd">Ajouter la période</button>
     </div>
     <div class="sec">
       <h3>Synthèse</h3>
@@ -691,7 +712,10 @@ body.v-phase #phase{display:grid}
   <div id="hMain">
     <div id="hBar">
       <span id="hResume" class="muted"></span>
-      <button class="primary" id="hExport">Exporter le phasage (Excel)</button>
+      <div class="acts">
+        <button id="hPdf" title="Frise, fiches des phases et liste des chantiers, en A4">Exporter en PDF</button>
+        <button class="primary" id="hExport">Exporter le phasage (Excel)</button>
+      </div>
     </div>
     <div id="hScroll"><div class="cvide"><span class="spin" style="display:inline-block;vertical-align:-2px;margin-right:8px"></span>Chargement des données…</div></div>
   </div>
@@ -1906,7 +1930,7 @@ function decouperPages(){
     while(deborde(page) && page.querySelectorAll('tbody tr').length > 1){
       const suite = document.createElement('section');
       suite.className = 'r-page';
-      suite.innerHTML = `<div class="r-head2"><b>${esc(p1.dataset.commune)}</b><span>Projets prévus (suite)</span></div>
+      suite.innerHTML = `<div class="r-head2"><b>${esc(p1.dataset.commune)}</b><span>${esc(p1.dataset.suite || 'Projets prévus (suite)')}</span></div>
         <table class="rc-t">${p1.querySelector('thead').outerHTML}<tbody></tbody></table><div class="rc-fill"></div>`;
       const note = page.querySelector('.rc-note');     // la note reste sur la dernière page
       if(note) suite.append(note);
@@ -1914,6 +1938,7 @@ function decouperPages(){
       page.after(suite);
       const de = page.querySelector('tbody'), vers = suite.querySelector('tbody');
       while(deborde(page) && de.rows.length > 1) vers.prepend(de.lastElementChild);
+      while(de.rows.length > 1 && de.lastElementChild.classList.contains('grp')) vers.prepend(de.lastElementChild);
       pages.push(suite);
       page = suite;
     }
@@ -2303,10 +2328,10 @@ document.getElementById('pBody').addEventListener('click', e=>{
    rythme de dalles par semaine ; la dernière phase reçoit le reste
    (vue réservée à l'ordinateur)
    ======================================================================= */
-const PH_DEF = {feries:true, bloq:[], duree:{simple:2, pdr:3.5, vig:0, cplx:1, bloq:2}, phases:[
+const PH_DEF = {feries:true, bloq:[], duree:{simple:2, pdr:3, vig:0, cplx:0.5, bloq:2}, phases:[
   {nom:'Phase 1', du:'2026-11-01', au:'2027-03-31', rythme:2.5},
-  {nom:'Phase 2', du:'2027-04-01', au:'2027-11-01', rythme:2.5},
-  {nom:'Phase 3', du:'2027-11-02', au:'',           rythme:2.5}
+  {nom:'Phase 2', du:'2027-04-01', au:'2027-11-01', rythme:3.5},
+  {nom:'Phase 3', du:'2027-11-02', au:'',           rythme:3.5}
 ]};
 const PH_CLE = 'ncpa_phasage';
 const PH_COUL = ['#1565C0', '#E08600', '#6A1B9A', '#2E7D32', '#B4451E', '#00838F'];
@@ -2414,6 +2439,17 @@ function phVersChamps(){
     ? 'Toutes les dalles ont la même durée.'
     : `Une dalle PDR compte pour ${phNb(eq, 2)} dalle${phS(eq)} simple${phS(eq)} dans le rythme des phases.`
   ) + ' Changer la durée d\'une dalle simple ajuste le rythme des phases : la capacité des équipes reste la même.';
+  // phasage figé : réglages en lecture seule tant qu'on ne le déverrouille pas
+  const fige = !!phP.fige;
+  document.getElementById('phase').classList.toggle('fige', fige);
+  document.querySelectorAll('#hPanel .verrou input').forEach(el=> el.disabled = fige);
+  document.getElementById('hBForm').hidden = fige;
+  document.getElementById('hFige').innerHTML = fige
+    ? `<div class="fige-ok">🔒 <b>Phasage figé</b> le ${phFr(phDeIso(phP.fige.le))}
+        <small>Dates, rythmes, durées et jours exclus sont verrouillés. La liste des chantiers suit toujours
+          les filtres de la Priorisation et les relevés terrain.</small>
+        <button id="hDefige">Déverrouiller pour modifier</button></div>`
+    : `<button class="wide primary" id="hFiger" title="Verrouiller les réglages actuels pour ne plus les modifier par erreur">🔒 Figer ce phasage</button>`;
   document.getElementById('hBloqList').innerHTML = phP.bloq.length ? phP.bloq.map((b, j)=>`
     <div class="cbl"><span>${esc(b.lib || 'Période sans chantier')}<small>${phFr(phDeIso(b.du))} → ${phFr(phDeIso(b.au))}</small></span>
       <button data-j="${j}" title="Supprimer cette période">×</button></div>`).join('')
@@ -2512,6 +2548,7 @@ function phRender(){
   document.getElementById('hResume').innerHTML = avec.length
     ? `<b>${phListe.length}</b> chantier${phS(phListe.length)} en <b>${avec.length}</b> phase${phS(avec.length)}`
       + `, du ${phFr(avec[0].du, {day:'numeric', month:'long', year:'numeric'})} au ${phFr(fin, {day:'numeric', month:'long', year:'numeric'})} (estimation)`
+      + (phP.fige ? ` · <b style="color:var(--ok)">🔒 figé le ${phFr(phDeIso(phP.fige.le))}</b>` : '')
     : '';
 
   if(!phListe.length){
@@ -2617,7 +2654,7 @@ function phExport(){
   const wb = XLSX.utils.book_new();
   const synth = [
     ['Phasage des chantiers — dalles béton'],
-    [`Export du ${phFr(phAuj())} : ${phListe.length} chantiers retenus par les filtres de l'onglet Priorisation, répartis dans l'ordre du rang.`],
+    [(phP.fige ? `Phasage figé le ${phFr(phDeIso(phP.fige.le))}. ` : '') + `Export du ${phFr(phAuj())} : ${phListe.length} chantiers retenus par les filtres de l'onglet Priorisation, répartis dans l'ordre du rang.`],
     ['Jours exclus : samedis, dimanches' + (phP.feries ? ', jours fériés' : '')
       + phP.bloq.map(b=> `, ${b.lib || 'période sans chantier'} (${phFr(phDeIso(b.du))} → ${phFr(phDeIso(b.au))})`).join('') + '.'],
     [`Durée d'un chantier : dalle simple (borne à verre, cabane à cartons) ${phNb(phP.duree.simple)} j ouvrés, dalle PDR ${phNb(phP.duree.pdr)} j ouvrés ;`
@@ -2648,6 +2685,60 @@ function phExport(){
   });
   XLSX.writeFile(wb, `phasage_chantiers_${phIso(phAuj())}.xlsx`);
   toast('Phasage exporté');
+}
+
+/* ---------- Export PDF : frise + fiches des phases, puis la liste des chantiers (A4) ---------- */
+function phPdf(){
+  if(!phListe.length) return toast('Aucun chantier à mettre en page');
+  const avec = phRes.filter(r=> r.items.length), fin = phRes.reduce((m, r)=> r.au && (!m || r.au > m) ? r.au : m, null);
+  const long = {day:'numeric', month:'long', year:'numeric'};
+  const d = phP.duree;
+  const tete = `<thead><tr><th style="width:7mm">#</th><th style="width:10mm">Rang</th><th>Commune</th><th style="width:27mm">Type</th>
+    <th style="width:11mm">Durée</th><th style="width:31mm">Coulage estimé</th><th style="width:28mm">Existant / à créer</th>
+    <th style="width:15mm">Relevé</th><th style="width:19mm">GPS</th></tr></thead>`;
+  const lignes = phRes.map(r=>`
+    <tr class="grp"><td colspan="9" style="border-bottom-color:${r.c}; color:${r.c}"><b>${esc(r.f.nom)}</b><span>${r.items.length} chantier${phS(r.items.length)}
+      dont ${phNbPdr(r.items)} PDR · ${phNb(r.charge)} j de chantier · ${r.du ? phFr(r.du) : '?'} → ${r.der && r.au ? '≈ ' : ''}${r.au ? phFr(r.au) : '?'}
+      · ${phNb(r.f.rythme)} dalle${phS(r.f.rythme)} simple${phS(r.f.rythme)} / sem.</span></td></tr>
+    ${r.items.map((p, k)=>`<tr>
+      <td class="rc-mut">${k+1}</td>
+      <td><span class="rc-n" style="background:${p.ty.c}">${p.rang}</span></td>
+      <td>${esc(p.commune)}</td>
+      <td>${esc(typeCourt(p))}</td>
+      <td>${phNb(phDuree(p))} j${phSupp(p) ? `<small>dont +${phNb(phSupp(p))} relevé</small>` : ''}</td>
+      <td class="nw">${phPer(r.dates[k])}</td>
+      <td>${etatHtml(p.etat)}</td>
+      <td>${p.rv ? `<span class="badge ${badgeCls(p.rv.difficulte)}">${esc(p.rv.difficulte || 'Fait')}</span>` : '<span class="rc-mut">À relever</span>'}</td>
+      <td class="rc-gps">${p.lat!==null ? p.lat.toFixed(5) + '<br>' + p.lon.toFixed(5) : 'NC'}</td>
+    </tr>`).join('')}`).join('');
+  const html = `
+  <section class="r-page rc1" data-commune="Phasage des chantiers" data-suite="Liste des chantiers (suite)">
+    <div class="r-head">
+      <div>
+        <div class="ey">NCPA · Dalles béton · phasage des chantiers</div>
+        <h1>Phasage des chantiers</h1>
+        <div class="sub">${phListe.length} chantier${phS(phListe.length)} en ${avec.length} phase${phS(avec.length)}${avec.length
+          ? `, du ${phFr(avec[0].du, long)} au ${phFr(fin, long)} (estimation)` : ''}</div>
+      </div>
+      ${phP.fige ? `<div class="r-diff"><small>Phasage figé le</small><span class="r-pill Simple">${phFr(phDeIso(phP.fige.le))}</span></div>` : ''}
+    </div>
+    <div class="rc-sum">
+      <span>Dalle simple <b>${phNb(d.simple)} j</b></span><span>Dalle PDR <b>${phNb(d.pdr)} j</b></span>
+      <span>Relevé Vigilance / Complexe / Bloquant <b>+${phNb(d.vig)} / +${phNb(d.cplx)} / +${phNb(d.bloq)} j</b></span>
+      <span>Jours exclus <b>week-ends${phP.feries ? ', fériés' : ''}${phP.bloq.length ? ', ' + phP.bloq.length + ' période' + phS(phP.bloq.length) : ''}</b></span>
+    </div>
+    <div class="rh-vis">${phFrise()}${phCartes().replace('class="hcards"', `class="hcards" style="grid-template-columns:repeat(${Math.min(3, phRes.length)},1fr)"`)}</div>
+    <div class="r-h">Liste des chantiers</div>
+    <table class="rc-t rh-t">${tete}<tbody>${lignes}</tbody></table>
+    <div class="rc-fill"></div>
+    <p class="rc-note">Chantiers retenus par les filtres de l'onglet Priorisation, répartis dans l'ordre du rang. Coulages estimés sur les jours ouvrés
+      (hors week-ends${phP.feries ? ', jours fériés' : ''}${phP.bloq.length ? ' et périodes sans chantier' : ''}).
+      Démarches amont comptées ${phDelaiAmont()} jours avant le premier coulage de chaque phase. Édité le ${phFr(phAuj())}.</p>
+    <div class="r-foot">
+      <span>NCPA · Direction de la maîtrise des déchets · Dalles béton, phasage des chantiers</span>
+      <span>Phasage · <span class="rc-pg">1/1</span></span></div>
+  </section>`;
+  afficherRapport(html, `Phasage_chantiers_${phIso(phAuj())}`, `${phListe.length} chantiers`);
 }
 
 // clic sur un chantier : on le situe dans l'onglet Priorisation
@@ -2741,7 +2832,21 @@ document.getElementById('hBloqList').addEventListener('click', e=>{
   phP.bloq.splice(+b.dataset.j, 1);
   phMaj(true);
 });
+document.getElementById('hFige').addEventListener('click', e=>{
+  if(e.target.closest('#hFiger')){
+    phP.fige = {le: phIso(phAuj())};
+    phMaj(true);
+    return toast('Phasage figé : réglages verrouillés');
+  }
+  if(e.target.closest('#hDefige')){
+    if(!confirm('Déverrouiller le phasage ? Les réglages redeviendront modifiables.')) return;
+    delete phP.fige;
+    phMaj(true);
+    toast('Phasage déverrouillé');
+  }
+});
 document.getElementById('hExport').onclick = phExport;
+document.getElementById('hPdf').onclick = phPdf;
 document.getElementById('hFiltres').onclick = ()=> setVue('prio');
 document.getElementById('hScroll').addEventListener('click', e=>{
   if(e.target.closest('a')) return;
