@@ -273,6 +273,11 @@ a.ph{display:block; text-decoration:none; color:var(--gris); text-align:center; 
 .rh-vis .hcard dt, .rh-vis .hcard dd{white-space:nowrap}
 .rc-t.rh-t .et{white-space:nowrap}
 .rc-t td.nw{white-space:nowrap}
+.r-page .hcal{border:none; padding:0; margin:4mm 0 0; flex:0 0 auto}
+.r-page .hcal-t{margin-bottom:2mm}
+.r-page .hcal-t b{font-size:11pt}
+.r-page .hmois{grid-template-columns:repeat(4,1fr); gap:3mm}
+.r-page .hm-com{max-height:13mm; overflow:hidden}
 .rc-t tr.grp td{padding:3mm 1.6mm 1.2mm; border-bottom:.5mm solid; font-size:9.5pt}
 .rc-t tr.grp td span{font-weight:400; color:var(--gris); font-size:8pt; margin-left:2mm}
 @media print{
@@ -441,6 +446,55 @@ body.v-phase #phase{display:grid}
 .pt tr.hgrp td{background:#fff; border-bottom:2px solid; padding:14px 8px 6px; font-size:14px; cursor:default; white-space:normal}
 .pt tr.hgrp:hover td{background:#fff}
 .pt tr.hgrp td span{font-size:12.5px; font-weight:400; color:var(--gris); margin-left:8px}
+/* vue calendrier : histogramme mensuel + tuiles mois par mois */
+.seg{display:flex; background:var(--gris-clair); border-radius:8px; padding:3px; gap:2px}
+#hBar .seg button{border:none; background:transparent; min-height:30px; padding:4px 14px; font-size:13.5px; color:var(--gris); border-radius:6px}
+#hBar .seg button:hover{background:rgba(255,255,255,.6)}
+#hBar .seg button.on{background:#fff; color:var(--rouge); box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.hcal{background:#fff; border:1px solid var(--bord); border-radius:8px; padding:12px 14px; margin:14px 0}
+.hcal-t{display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 14px; margin-bottom:10px}
+.hcal-t b{font-size:15px}
+.hcal-t .leg{display:flex; flex-wrap:wrap; gap:3px 12px; font-size:12px; color:var(--gris); margin-left:auto}
+.hcal-t .leg span{display:inline-flex; align-items:center; gap:4px}
+.hcal .dot{width:9px; height:9px; flex:0 0 9px}
+.hhist{display:grid; gap:6px}
+.hb{display:flex; flex-direction:column; align-items:stretch; min-width:0; cursor:default}
+.hb .zone{display:flex; flex-direction:column; justify-content:flex-end; align-items:center; border-bottom:1px solid var(--bord)}
+.hb .n{font-size:12px; font-weight:700; color:#22262b; line-height:1; margin-bottom:3px; font-variant-numeric:tabular-nums}
+.hb .col{display:flex; flex-direction:column-reverse; gap:2px; width:70%; max-width:42px}
+.hb .col i{display:block; min-height:2px}
+.hb .col i:last-child{border-radius:4px 4px 0 0}
+.hb:hover .zone{background:var(--fond)}
+.hb .ph{height:4px; margin-top:3px; border-radius:2px}
+.hb .lb{font-size:11px; color:var(--gris); text-align:center; margin-top:3px; white-space:nowrap; overflow:hidden}
+.hb .an{font-size:11px; font-weight:700; text-align:center; line-height:1.1}
+#hTip{position:fixed; z-index:2000; pointer-events:none; background:#fff; border:1px solid var(--bord); border-radius:7px;
+  box-shadow:0 3px 12px rgba(0,0,0,.18); padding:8px 10px; font-size:12.5px; line-height:1.45; max-width:280px; display:none}
+#hTip b{font-size:13px}
+#hTip .r{display:flex; align-items:center; gap:6px}
+#hTip .r em{font-style:normal; margin-left:auto; font-weight:700; padding-left:12px; font-variant-numeric:tabular-nums}
+#hTip .dot{width:9px; height:9px; flex:0 0 9px}
+#hTip small{display:block; color:var(--gris); margin-top:3px}
+.hm-an{font-size:14px; margin:12px 0 6px; color:#22262b}
+.hm-an:first-of-type{margin-top:0}
+.hmois{display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:10px}
+.hm{border:1px solid var(--bord); border-radius:7px; overflow:hidden; background:#fff; display:flex; flex-direction:column}
+.hm-top{height:5px; flex:0 0 auto}
+.hm-in{padding:7px 10px 9px; display:flex; flex-direction:column; gap:5px}
+.hm-h{display:flex; align-items:baseline; gap:6px}
+.hm-h b{font-size:14px}
+.hm-h span{margin-left:auto; font-size:11px; color:var(--gris); white-space:nowrap}
+.hm-n{font-size:12.5px; color:var(--gris)}
+.hm-n b{font-size:24px; color:#22262b; line-height:1; margin-right:4px; font-variant-numeric:tabular-nums}
+.hm-bar{display:flex; gap:2px; height:8px}
+.hm-bar i{display:block; border-radius:2px}
+.hm-ty{display:flex; flex-wrap:wrap; gap:2px 10px; font-size:12px}
+.hm-ty span{display:inline-flex; align-items:center; gap:4px}
+.hm-meta{font-size:11.5px; color:var(--gris)}
+.hm-com{font-size:11.5px; color:#22262b; line-height:1.35; border-top:1px dotted var(--bord); padding-top:5px}
+.hm-com b{font-weight:600}
+.hm.vide{background:var(--fond)}
+.hm.vide .hm-n b{color:#b9bdc2}
 .pt a.gpsl{color:#1565C0; text-decoration:none}
 .pt a.gpsl:hover{text-decoration:underline}
 
@@ -711,6 +765,9 @@ body.v-phase #phase{display:grid}
   </aside>
   <div id="hMain">
     <div id="hBar">
+      <div class="seg" id="hVue" role="group" aria-label="Affichage">
+        <button data-v="liste">Liste</button><button data-v="cal">Calendrier</button>
+      </div>
       <span id="hResume" class="muted"></span>
       <div class="acts">
         <button id="hPdf" title="Frise, fiches des phases et liste des chantiers, en A4">Exporter en PDF</button>
@@ -741,6 +798,7 @@ body.v-phase #phase{display:grid}
 </div>
 
 <div id="toast"></div>
+<div id="hTip"></div>
 
 <!-- ================= RAPPORT PDF (aperçu puis impression) ================= -->
 <div id="rapport">
@@ -2340,6 +2398,9 @@ let phAmont = Object.assign({}, PH_AMONT);          // remplacés par l'onglet R
 let phP = null;     // réglages en cours (mémorisés dans ce navigateur)
 let phRes = [];     // dernier calcul : une entrée par phase
 let phListe = [];   // chantiers pris en compte, dans l'ordre du rang
+let phMoisRes = []; // dernier calcul mois par mois (vue calendrier)
+let phVue = 'liste';
+try { if(localStorage.getItem('ncpa_phasage_vue') === 'cal') phVue = 'cal'; } catch(e){}
 
 // dates « à midi » : pas de décalage d'un jour aux changements d'heure
 const phJ = (y, m, d) => new Date(y, m, d, 12);
@@ -2556,7 +2617,14 @@ function phRender(){
     return;
   }
   const garde = scroll.scrollTop;
-  scroll.innerHTML = phFrise() + phCartes() + phTableau();
+  document.querySelectorAll('#hVue button').forEach(b=> b.classList.toggle('on', b.dataset.v === phVue));
+  document.getElementById('hPdf').title = phVue === 'cal'
+    ? 'Frise, fiches des phases, histogramme et calendrier mois par mois, en A4'
+    : 'Frise, fiches des phases et liste des chantiers, en A4';
+  phMoisRes = phMois();
+  scroll.innerHTML = phVue === 'cal'
+    ? phFrise() + phHisto(phMoisRes) + phCalendrier(phMoisRes)
+    : phFrise() + phCartes() + phTableau();
   scroll.scrollTop = garde;
 }
 
@@ -2576,6 +2644,89 @@ function phFrise(){
     <div class="${r.der ? 'ouv' : ''}" style="left:${pct(+r.du)}; width:calc(${pct(+phPlus(r.au, 1))} - ${pct(+r.du)}); background:${r.c}"
       title="${esc(r.f.nom)} : ${phFr(r.du)} → ${r.der ? '≈ ' : ''}${phFr(r.au)} · ${r.items.length} chantier${phS(r.items.length)}">
       ${esc(r.f.nom)}<span>${r.items.length}</span></div>`).join('')}</div>`;
+}
+
+// mois par mois : chaque chantier est compté au mois de son premier jour de coulage
+function phMois(){
+  const ok = phRes.filter(r=> r.du && r.au && r.au >= r.du);
+  if(!ok.length) return [];
+  const d0 = new Date(Math.min(...ok.map(r=> +r.du))), d1 = new Date(Math.max(...ok.map(r=> +r.au)));
+  const mois = [];
+  for(let m = phJ(d0.getFullYear(), d0.getMonth(), 1); m <= d1; m = phJ(m.getFullYear(), m.getMonth()+1, 1)){
+    const o = {deb:m, fin:phJ(m.getFullYear(), m.getMonth()+1, 0), items:[], charge:0, ouvres:0, ph:[]};
+    ok.forEach(r=>{
+      const a = r.du > o.deb ? r.du : o.deb, b = r.au < o.fin ? r.au : o.fin;
+      if(a > b) return;
+      o.ph.push({r, jours: Math.round((b - a) / 864e5) + 1});
+      o.ouvres += phOuvres(a, b);
+    });
+    mois.push(o);
+  }
+  phRes.forEach(r=> r.items.forEach((p, k)=>{
+    const dt = r.dates[k] && r.dates[k].du;
+    const o = dt && mois.find(x=> dt >= x.deb && dt <= x.fin);
+    if(o){ o.items.push(p); o.charge += phDuree(p); }
+  }));
+  return mois;
+}
+const PH_TY = {pdr:'PDR', verre:'Verre', carton:'Cartons', autre:'Autre'};
+const phTypes = items => PRIO_TYPES.map(t=> ({t, n:items.filter(p=> p.ty.k===t.k).length})).filter(x=> x.n);
+const phMoisNom = o => { const s = phFr(o.deb, {month:'long', year:'numeric'}); return s[0].toUpperCase() + s.slice(1); };
+// bandeau de couleur : la part de chaque phase dans le mois
+function phGrad(o){
+  if(!o.ph.length) return 'var(--gris-clair)';
+  if(o.ph.length === 1) return o.ph[0].r.c;
+  const tot = o.ph.reduce((t, x)=> t + x.jours, 0);
+  let acc = 0;
+  return `linear-gradient(90deg, ${o.ph.map(x=>{ const a = acc / tot * 100; acc += x.jours;
+    return `${x.r.c} ${a.toFixed(1)}% ${(acc / tot * 100).toFixed(1)}%`; }).join(', ')})`;
+}
+// communes du mois, dans l'ordre des coulages, avec leur nombre de chantiers
+function phCommunes(items, max){
+  const m = new Map();
+  items.forEach(p=> m.set(p.commune, (m.get(p.commune) || 0) + 1));
+  const l = [...m].map(([c, n])=> `${esc(c)} <b>${n}</b>`);
+  return l.length > max ? l.slice(0, max).join(' · ') + ` · +${l.length - max} autre${phS(l.length - max)}` : l.join(' · ');
+}
+
+// histogramme : chantiers démarrés chaque mois, empilés par type de dalle
+function phHisto(mois, H){
+  if(!mois.length) return '';
+  H = H || 160;
+  const max = Math.max(1, ...mois.map(o=> o.items.length)), hBar = H - 18;
+  return `<div class="hcal"><div class="hcal-t"><b>Chantiers démarrés par mois</b>
+      <span class="leg">${phTypes(phListe).map(x=> `<span><i class="dot" style="background:var(${x.t.c})"></i>${x.t.l} ${x.n}</span>`).join('')}</span></div>
+    <div class="hhist" style="grid-template-columns:repeat(${mois.length}, minmax(0,1fr))">${mois.map((o, j)=>`
+      <div class="hb" data-m="${j}">
+        <div class="zone" style="height:${H}px">${o.items.length ? `<span class="n">${o.items.length}</span>` : ''}
+          <div class="col">${phTypes(o.items).map(x=> `<i style="height:${(x.n / max * hBar).toFixed(1)}px; background:var(${x.t.c})"></i>`).join('')}</div></div>
+        <div class="ph" style="background:${phGrad(o)}"></div>
+        <span class="lb">${phFr(o.deb, {month:'short'})}</span>
+        <span class="an">${j === 0 || o.deb.getMonth() === 0 ? o.deb.getFullYear() : '&nbsp;'}</span>
+      </div>`).join('')}</div></div>`;
+}
+
+function phTuile(o){
+  const n = o.items.length, ty = phTypes(o.items);
+  return `<div class="hm${n ? '' : ' vide'}">
+    <div class="hm-top" style="background:${phGrad(o)}"></div>
+    <div class="hm-in">
+      <div class="hm-h"><b>${phMoisNom(o)}</b><span>${o.ph.map(x=> esc(x.r.f.nom)).join(' · ')}</span></div>
+      <div class="hm-n"><b>${n}</b>chantier${phS(n)} démarré${phS(n)}</div>
+      ${n ? `<div class="hm-bar">${ty.map(x=> `<i style="flex:${x.n}; background:var(${x.t.c})"></i>`).join('')}</div>
+      <div class="hm-ty">${ty.map(x=> `<span><i class="dot" style="background:var(${x.t.c})"></i>${PH_TY[x.t.k]} <b>${x.n}</b></span>`).join('')}</div>`
+        : '<div class="hm-ty muted">Aucun coulage prévu</div>'}
+      <div class="hm-meta">${phNb(o.charge)} j de chantier · ${o.ouvres} j ouvrés</div>
+      ${n ? `<div class="hm-com">${phCommunes(o.items, 6)}</div>` : ''}
+    </div></div>`;
+}
+
+function phCalendrier(mois){
+  if(!mois.length) return '';
+  const ans = [...new Set(mois.map(o=> o.deb.getFullYear()))];
+  return `<div class="hcal"><div class="hcal-t"><b>Calendrier mois par mois</b>
+      <span class="muted">Chaque chantier est compté au mois de son premier jour de coulage.</span></div>
+    ${ans.map(a=> `<h5 class="hm-an">${a}</h5><div class="hmois">${mois.filter(o=> o.deb.getFullYear() === a).map(phTuile).join('')}</div>`).join('')}</div>`;
 }
 
 function phCartes(){
@@ -2688,11 +2839,62 @@ function phExport(){
 }
 
 /* ---------- Export PDF : frise + fiches des phases, puis la liste des chantiers (A4) ---------- */
-function phPdf(){
-  if(!phListe.length) return toast('Aucun chantier à mettre en page');
+// bandeau rouge, rappel des réglages, frise et fiches : communs aux deux mises en page
+function phPdfTete(){
   const avec = phRes.filter(r=> r.items.length), fin = phRes.reduce((m, r)=> r.au && (!m || r.au > m) ? r.au : m, null);
   const long = {day:'numeric', month:'long', year:'numeric'};
   const d = phP.duree;
+  return `
+    <div class="r-head">
+      <div>
+        <div class="ey">NCPA · Dalles béton · phasage des chantiers</div>
+        <h1>Phasage des chantiers</h1>
+        <div class="sub">${phListe.length} chantier${phS(phListe.length)} en ${avec.length} phase${phS(avec.length)}${avec.length
+          ? `, du ${phFr(avec[0].du, long)} au ${phFr(fin, long)} (estimation)` : ''}</div>
+      </div>
+      ${phP.fige ? `<div class="r-diff"><small>Phasage figé le</small><span class="r-pill Simple">${phFr(phDeIso(phP.fige.le))}</span></div>` : ''}
+    </div>
+    <div class="rc-sum">
+      <span>Dalle simple <b>${phNb(d.simple)} j</b></span><span>Dalle PDR <b>${phNb(d.pdr)} j</b></span>
+      <span>Relevé Vigilance / Complexe / Bloquant <b>+${phNb(d.vig)} / +${phNb(d.cplx)} / +${phNb(d.bloq)} j</b></span>
+      <span>Jours exclus <b>week-ends${phP.feries ? ', fériés' : ''}${phP.bloq.length ? ', ' + phP.bloq.length + ' période' + phS(phP.bloq.length) : ''}</b></span>
+    </div>
+    <div class="rh-vis">${phFrise()}${phCartes().replace('class="hcards"', `class="hcards" style="grid-template-columns:repeat(${Math.min(3, phRes.length)},1fr)"`)}</div>`;
+}
+const phPdfNote = () => `<p class="rc-note">Chantiers retenus par les filtres de l'onglet Priorisation, répartis dans l'ordre du rang. Coulages estimés sur les jours ouvrés
+      (hors week-ends${phP.feries ? ', jours fériés' : ''}${phP.bloq.length ? ' et périodes sans chantier' : ''}).
+      Démarches amont comptées ${phDelaiAmont()} jours avant le premier coulage de chaque phase. Édité le ${phFr(phAuj())}.</p>`;
+const phPdfPied = pg => `<div class="r-foot">
+      <span>NCPA · Direction de la maîtrise des déchets · Dalles béton, phasage des chantiers</span>
+      <span>Phasage · <span class="rc-pg">${pg}</span></span></div>`;
+
+// version calendrier : page 1 = frise, fiches et histogramme ; puis 16 mois par page
+function phPdfCal(){
+  const mois = phMois(), PAR = 16, nb = 1 + Math.ceil(mois.length / PAR);
+  let html = `
+  <section class="r-page">${phPdfTete()}
+    ${phHisto(mois, 220)}
+    <div class="rc-fill"></div>
+    ${phPdfNote()}
+    ${phPdfPied(`1/${nb}`)}
+  </section>`;
+  for(let i = 0, pg = 2; i < mois.length; i += PAR, pg++){
+    const lot = mois.slice(i, i + PAR);
+    html += `
+  <section class="r-page">
+    <div class="r-head2"><b>Calendrier mois par mois</b><span>${phMoisNom(lot[0])} → ${phMoisNom(lot[lot.length-1])}
+      · chantiers comptés au mois de leur premier jour de coulage</span></div>
+    <div class="hcal"><div class="hmois">${lot.map(phTuile).join('')}</div></div>
+    <div class="rc-fill"></div>
+    ${phPdfPied(`${pg}/${nb}`)}
+  </section>`;
+  }
+  afficherRapport(html, `Phasage_calendrier_${phIso(phAuj())}`, `${phListe.length} chantiers, ${mois.length} mois`);
+}
+
+function phPdf(){
+  if(!phListe.length) return toast('Aucun chantier à mettre en page');
+  if(phVue === 'cal') return phPdfCal();
   const tete = `<thead><tr><th style="width:7mm">#</th><th style="width:10mm">Rang</th><th>Commune</th><th style="width:27mm">Type</th>
     <th style="width:11mm">Durée</th><th style="width:31mm">Coulage estimé</th><th style="width:28mm">Existant / à créer</th>
     <th style="width:19mm">GPS</th></tr></thead>`;
@@ -2711,31 +2913,12 @@ function phPdf(){
       <td class="rc-gps">${p.lat!==null ? p.lat.toFixed(5) + '<br>' + p.lon.toFixed(5) : 'NC'}</td>
     </tr>`).join('')}`).join('');
   const html = `
-  <section class="r-page rc1" data-commune="Phasage des chantiers" data-suite="Liste des chantiers (suite)">
-    <div class="r-head">
-      <div>
-        <div class="ey">NCPA · Dalles béton · phasage des chantiers</div>
-        <h1>Phasage des chantiers</h1>
-        <div class="sub">${phListe.length} chantier${phS(phListe.length)} en ${avec.length} phase${phS(avec.length)}${avec.length
-          ? `, du ${phFr(avec[0].du, long)} au ${phFr(fin, long)} (estimation)` : ''}</div>
-      </div>
-      ${phP.fige ? `<div class="r-diff"><small>Phasage figé le</small><span class="r-pill Simple">${phFr(phDeIso(phP.fige.le))}</span></div>` : ''}
-    </div>
-    <div class="rc-sum">
-      <span>Dalle simple <b>${phNb(d.simple)} j</b></span><span>Dalle PDR <b>${phNb(d.pdr)} j</b></span>
-      <span>Relevé Vigilance / Complexe / Bloquant <b>+${phNb(d.vig)} / +${phNb(d.cplx)} / +${phNb(d.bloq)} j</b></span>
-      <span>Jours exclus <b>week-ends${phP.feries ? ', fériés' : ''}${phP.bloq.length ? ', ' + phP.bloq.length + ' période' + phS(phP.bloq.length) : ''}</b></span>
-    </div>
-    <div class="rh-vis">${phFrise()}${phCartes().replace('class="hcards"', `class="hcards" style="grid-template-columns:repeat(${Math.min(3, phRes.length)},1fr)"`)}</div>
+  <section class="r-page rc1" data-commune="Phasage des chantiers" data-suite="Liste des chantiers (suite)">${phPdfTete()}
     <div class="r-h">Liste des chantiers</div>
     <table class="rc-t rh-t">${tete}<tbody>${lignes}</tbody></table>
     <div class="rc-fill"></div>
-    <p class="rc-note">Chantiers retenus par les filtres de l'onglet Priorisation, répartis dans l'ordre du rang. Coulages estimés sur les jours ouvrés
-      (hors week-ends${phP.feries ? ', jours fériés' : ''}${phP.bloq.length ? ' et périodes sans chantier' : ''}).
-      Démarches amont comptées ${phDelaiAmont()} jours avant le premier coulage de chaque phase. Édité le ${phFr(phAuj())}.</p>
-    <div class="r-foot">
-      <span>NCPA · Direction de la maîtrise des déchets · Dalles béton, phasage des chantiers</span>
-      <span>Phasage · <span class="rc-pg">1/1</span></span></div>
+    ${phPdfNote()}
+    ${phPdfPied('1/1')}
   </section>`;
   afficherRapport(html, `Phasage_chantiers_${phIso(phAuj())}`, `${phListe.length} chantiers`);
 }
@@ -2846,6 +3029,29 @@ document.getElementById('hFige').addEventListener('click', e=>{
 });
 document.getElementById('hExport').onclick = phExport;
 document.getElementById('hPdf').onclick = phPdf;
+document.getElementById('hVue').addEventListener('click', e=>{
+  const b = e.target.closest('button[data-v]');
+  if(!b || b.dataset.v === phVue) return;
+  phVue = b.dataset.v;
+  try { localStorage.setItem('ncpa_phasage_vue', phVue); } catch(e){}
+  document.getElementById('hScroll').scrollTop = 0;
+  phRender();
+});
+// info-bulle de l'histogramme : détail du mois survolé
+const hTip = document.getElementById('hTip');
+document.getElementById('hScroll').addEventListener('mousemove', e=>{
+  const hb = e.target.closest('.hb[data-m]'), o = hb && phMoisRes[+hb.dataset.m];
+  if(!o){ hTip.style.display = 'none'; return; }
+  hTip.innerHTML = `<b>${phMoisNom(o)}</b> · ${o.items.length} chantier${phS(o.items.length)} démarré${phS(o.items.length)}
+    ${phTypes(o.items).map(x=> `<div class="r"><i class="dot" style="background:var(${x.t.c})"></i>${x.t.l}<em>${x.n}</em></div>`).join('')}
+    <small>${o.ph.map(x=> esc(x.r.f.nom)).join(' · ') || 'Hors phase'} · ${phNb(o.charge)} j de chantier · ${o.ouvres} j ouvrés</small>
+    ${o.items.length ? `<small>${phCommunes(o.items, 8)}</small>` : ''}`;
+  hTip.style.display = 'block';
+  const w = hTip.offsetWidth, h = hTip.offsetHeight;
+  hTip.style.left = Math.min(e.clientX + 14, innerWidth - w - 8) + 'px';
+  hTip.style.top = (e.clientY + 14 + h > innerHeight ? e.clientY - h - 10 : e.clientY + 14) + 'px';
+});
+document.getElementById('hScroll').addEventListener('mouseleave', ()=> hTip.style.display = 'none');
 document.getElementById('hFiltres').onclick = ()=> setVue('prio');
 document.getElementById('hScroll').addEventListener('click', e=>{
   if(e.target.closest('a')) return;
