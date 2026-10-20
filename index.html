@@ -13,6 +13,7 @@
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@7.1.0/turf.min.js"></script>
 
 <style>
 :root{
@@ -21,6 +22,8 @@
   --fond:#f7f8f9; --blanc:#fff;
   --verre:#2E7D9A; --carton:#C77D2E; --pdr:#B91E27; --autre:#7a7f86;
   --ok:#2E7D32; --warn:#E08600; --danger:#C62828;
+  /* contraintes patrimoniales (ABF) */
+  --p-bloq:#4A148C; --p-rouge:#D32F2F; --p-orange:#F57C00; --p-conf:#8D949B; --p-vert:#43A047; --p-na:#C9CED3;
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;height:100%}
@@ -498,6 +501,51 @@ body.v-phase #phase{display:grid}
 .pt a.gpsl{color:#1565C0; text-decoration:none}
 .pt a.gpsl:hover{text-decoration:underline}
 
+/* =================== PATRIMOINE (ABF) & CADASTRE =================== */
+.pat{display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:700;
+  color:#fff; white-space:nowrap; line-height:1.5}
+.pat-bloq{background:var(--p-bloq)} .pat-rouge{background:var(--p-rouge)} .pat-orange{background:var(--p-orange)}
+.pat-conf{background:#fff; color:#4a4f56; border:1.5px dashed var(--p-conf)} .pat-vert{background:var(--p-vert)}
+.pat-na{background:var(--gris-clair); color:var(--gris)}
+.patri{margin-top:6px}
+.patri .proc{font-size:12px; color:var(--gris); margin-top:3px; line-height:1.35}
+.patri ul{margin:4px 0 0; padding:0; list-style:none; font-size:12.5px; line-height:1.35}
+.patri li{display:flex; gap:6px; align-items:flex-start; margin:2px 0}
+.patri li i{flex:0 0 10px; width:10px; height:10px; margin-top:3px; border-radius:2px}
+.patri li i.theo{background:none !important; border:2px dashed var(--p-orange); border-radius:50%}
+.patri li small{color:var(--gris)}
+.avert{font-size:12px; color:#7A5C00; background:#FFF8E1; border-left:3px solid #E0A800; padding:4px 7px; margin-top:5px; border-radius:3px}
+.leaflet-popup-content .patri ul{max-width:290px}
+#legPatri .chk{margin:3px 0}
+#legPatri .dot{border-radius:3px}
+.leg-z{display:inline-block; width:22px; height:12px; flex:0 0 22px; border:2px solid; border-radius:2px}
+.seg.cm{margin:2px 0 8px}
+.seg.cm button{flex:1; border:none; background:transparent; min-height:34px; padding:4px 8px; font-size:13px; color:var(--gris); border-radius:6px}
+.seg.cm button.on{background:#fff; color:var(--rouge); box-shadow:0 1px 3px rgba(0,0,0,.15)}
+#fPatri .chk, #pPatri .chk{font-size:12.5px}
+#fPatri .n, #pPatri .n{margin-left:auto; color:var(--gris); font-size:12px}
+.patri-etat{font-size:12px; line-height:1.4; color:var(--gris); background:var(--fond); border:1px solid var(--bord); border-radius:6px; padding:6px 8px}
+.patri-etat b{color:#22262b}
+.patri-etat.ko{background:#FFEBEE; border-color:#EF9A9A; border-left:4px solid var(--danger); color:#7f1010}
+.patri-etat.maj{background:#E8F5E9; border-color:#A5D6A7; border-left:4px solid var(--ok); color:#1B5E20}
+.patri-etat ol{margin:4px 0 0; padding-left:18px}
+.patri-etat a{color:#1565C0}
+table.pcom{width:100%; border-collapse:collapse; font-size:12px; margin-top:6px}
+.pcom th{font-size:11px; font-weight:400; padding:3px 2px; border-bottom:1px solid var(--bord); text-align:center}
+.pcom th:first-child, .pcom td:first-child{text-align:left}
+.pcom td{padding:3px 2px; border-bottom:1px solid var(--gris-clair); text-align:center; font-variant-numeric:tabular-nums}
+.pcom td.z{color:#c9cdd2}
+.pcom tbody tr{cursor:pointer}
+.pcom tbody tr:hover td{background:var(--fond)}
+.pcom tr.sel td{background:#fbeaeb}
+.pcom tr.nosup td:first-child::after{content:" ⚠"; color:#B47D00}
+.pcom tfoot td{font-weight:700; border-top:1px solid var(--bord); border-bottom:none}
+.ph-abf{font-size:11.5px; white-space:nowrap}
+.ph-abf.late{color:var(--danger); font-weight:700}
+/* mise à jour des données : sur ordinateur seulement (comme les onglets) */
+.ordi-seul{display:none !important}
+@media (min-width:1025px) and (hover:hover) and (pointer:fine){ .ordi-seul{display:block !important} }
+
 @media(max-width:860px){
   /* le panneau devient un tiroir : la carte occupe tout l'écran */
   #panel{
@@ -576,6 +624,8 @@ body.v-phase #phase{display:grid}
         <label class="chk"><input type="checkbox" value="done" checked> Relevés faits</label>
         <label class="chk"><input type="checkbox" value="todo" checked> À relever</label>
       </div>
+      <label class="f">Contrainte patrimoniale (ABF)</label>
+      <div id="fPatri"></div>
     </div>
 
     <div class="sec">
@@ -590,12 +640,31 @@ body.v-phase #phase{display:grid}
 
     <div class="sec">
       <h3>Légende</h3>
-      <div class="chk"><span class="dot" style="background:var(--pdr)"></span> PDR / dalle claustra</div>
-      <div class="chk"><span class="dot" style="background:var(--verre)"></span> Borne à verre</div>
-      <div class="chk"><span class="dot" style="background:var(--carton)"></span> Cabane à cartons</div>
-      <div class="chk"><span class="dot" style="background:var(--autre)"></span> Autre / non typé</div>
+      <label class="f" style="margin-top:0">Couleur des marqueurs</label>
+      <div class="seg cm" id="couleurMode" role="group" aria-label="Couleur des marqueurs">
+        <button data-m="type" class="on">Type</button><button data-m="patri">Contrainte patrimoniale</button>
+      </div>
+      <div id="legType">
+        <div class="chk"><span class="dot" style="background:var(--pdr)"></span> PDR / dalle claustra</div>
+        <div class="chk"><span class="dot" style="background:var(--verre)"></span> Borne à verre</div>
+        <div class="chk"><span class="dot" style="background:var(--carton)"></span> Cabane à cartons</div>
+        <div class="chk"><span class="dot" style="background:var(--autre)"></span> Autre / non typé</div>
+      </div>
+      <div id="legPatri" hidden></div>
       <div class="chk"><span class="dot" style="background:#fff;border:3px solid var(--ok)"></span> Relevé terrain fait</div>
       <p class="muted">Contour épais = agrandissement d'une dalle existante.</p>
+      <div id="legZones"></div>
+    </div>
+
+    <div class="sec" id="patriSec">
+      <h3>Patrimoine (ABF)</h3>
+      <div class="patri-etat" id="patriEtat">Chargement des zonages patrimoniaux…</div>
+      <div id="patriCom"></div>
+      <div id="patriSansSup"></div>
+      <button class="wide" id="patriXlsx">Statuts patrimoniaux → Excel</button>
+      <button class="wide ordi-seul" id="patriMaj">Mettre à jour les données (IGN, Mérimée)</button>
+      <p class="muted">Statut indicatif, calculé à partir des servitudes AC1 / AC2 / AC4 du Géoportail de l'urbanisme et de la base Mérimée.
+        Seuls l'ABF (UDAP du Calvados) et le service instructeur font foi.</p>
     </div>
 
     <div class="sec">
@@ -644,6 +713,8 @@ body.v-phase #phase{display:grid}
         <label class="chk"><input type="checkbox" value="done" checked> Relevé fait <span class="n" data-n="done"></span></label>
         <label class="chk"><input type="checkbox" value="todo" checked> À relever <span class="n" data-n="todo"></span></label>
       </div>
+      <label class="f">Contrainte patrimoniale (ABF)</label>
+      <div id="pPatri"></div>
       <button class="wide" id="pReset">Réinitialiser les filtres</button>
     </div>
     <div class="sec">
@@ -683,9 +754,10 @@ body.v-phase #phase{display:grid}
           <th data-s="type">Type</th>
           <th data-s="etat">Existant / à créer</th>
           <th data-s="rv">Relevé</th>
+          <th data-s="patri" title="Contrainte patrimoniale (avis de l'ABF)">Patrimoine</th>
           <th data-s="lat">Coordonnées GPS</th>
         </tr></thead>
-        <tbody id="pBody"><tr><td colspan="7" class="empty"><span class="spin"></span>Chargement des données…</td></tr></tbody>
+        <tbody id="pBody"><tr><td colspan="8" class="empty"><span class="spin"></span>Chargement des données…</td></tr></tbody>
       </table>
     </div>
   </section>
@@ -731,6 +803,15 @@ body.v-phase #phase{display:grid}
           <input type="number" data-d="bloq" min="0" max="15" step="any" aria-label="Jours en plus si relevé Bloquant">
           <button data-dpas="0.5" title="Une demi-journée de plus">+</button></div></div>
       <p class="muted">Ajoutés à la durée de base du chantier dès que son relevé terrain porte ce niveau de difficulté.</p>
+    </div>
+    <div class="sec verrou" id="hAbf">
+      <h3>Avis ABF <span>(jours calendaires)</span></h3>
+      <div class="dur"><span>Délai DP + avis ABF
+          <small>Chantiers en zonage patrimonial ⛔ 🔴 🟠</small></span>
+        <div class="ry"><button data-apas="-15" title="15 jours de moins">−</button>
+          <input type="number" id="hAbfJ" min="0" max="365" step="1" aria-label="Délai de la déclaration préalable avec avis ABF (jours)">
+          <button data-apas="15" title="15 jours de plus">+</button></div></div>
+      <p class="muted" id="hAbfInfo"></p>
     </div>
     <div class="sec verrou">
       <h3>Jours exclus</h3>
@@ -825,7 +906,23 @@ const CONFIG = {
   PRIO_SHEET      : "PRIORISATION-ETAT",
   // Vue initiale de la carte (NCPA)
   CENTRE          : [49.28, -0.10],
-  ZOOM            : 11
+  ZOOM            : 11,
+
+  // ---- Patrimoine (ABF) ----
+  // Instantané des zonages patrimoniaux, dans le même dépôt GitHub (bouton « Mettre à jour les données » pour le régénérer)
+  PATRIMOINE_GEOJSON : "./patrimoine_ncpa.geojson",
+  // EPCI de NCPA (SIREN) : sert à récupérer les communes et leurs contours
+  EPCI            : "200065563",
+  // Service WFS de la Géoplateforme (servitudes du Géoportail de l'urbanisme + cadastre)
+  WFS             : "https://data.geopf.fr/wfs/ows",
+  // Couche « sites inscrits / classés » (DREAL) : son nom contient une date et change à chaque republication ;
+  // si elle n'est plus trouvée, la mise à jour cherche automatiquement le nouveau nom
+  STE_LAYER       : "sites_metropole_gpkg_26-01-2026_wfs:STE_Metropole",
+  // Base Mérimée (immeubles protégés MH), via l'API tabulaire de data.gouv.fr
+  MERIMEE_API     : "https://tabular-api.data.gouv.fr/api/resources/3a52af4a-f9da-4dcc-8110-b07774dfb3bc/data/",
+  DEPARTEMENT     : "14",
+  // Page GitHub où déposer le fichier mis à jour
+  GITHUB_UPLOAD   : "https://github.com/ncpa-dechets/suivi-chantiers/upload/main"
 };
 
 /* =======================================================================
@@ -994,7 +1091,8 @@ const ortho = L.tileLayer(
 suivreFond(positron, ortho, 'm1');
 positron.addTo(map);
 
-L.control.layers({'Plan (OpenFreeMap)':positron, 'Satellite (IGN)':ortho}, null, {position:'topright'}).addTo(map);
+// gardé dans une variable : les couches patrimoine et cadastre s'y ajoutent (section PATRIMOINE)
+const ctlTerrain = L.control.layers({'Plan (OpenFreeMap)':positron, 'Satellite (IGN)':ortho}, null, {position:'topright'}).addTo(map);
 L.control.scale({imperial:false}).addTo(map);
 // Clusters selon la densité ; pastille verte quand tous les sites du groupe sont relevés
 layer = L.markerClusterGroup({
@@ -1140,10 +1238,14 @@ function refresh(){
   const actifs = [...document.querySelectorAll('#fTypes input:checked')].map(i=>i.value);
   const voirFaits  = document.querySelector('#fEtat input[value=done]').checked;
   const voirAFaire = document.querySelector('#fEtat input[value=todo]').checked;
+  const patActifs = [...document.querySelectorAll('#fPatri input:checked')].map(i=>i.value);
+  const couleurPatri = couleurMode === 'patri';
   const compte = {};   // nombre de sites par pastille (commune filtrée)
+  const comptePat = {};   // nombre de sites par statut patrimonial (selon les autres filtres)
 
   let n=0, done=0, bloq=0;
   const bounds = [];
+  const patCom = [];
 
   rows.forEach(row=>{
     const lat = parseFloat(String(val(row,'lat')).replace(',','.'));
@@ -1153,6 +1255,9 @@ function refresh(){
     const id = val(row,'id') || (lat.toFixed(5)+'_'+lon.toFixed(5));
     const ty = typeOf(row);
     const rv = releves[id];
+    const pat = patriStatut(lat, lon);
+    // compteur par commune (panneau Patrimoine) : suit les filtres type / relevé, pas le filtre commune
+    if(actifs.includes(ty.k) && (rv ? voirFaits : voirAFaire)) patCom.push({commune:val(row,'commune'), s:pat.s});
 
     if(fc && val(row,'commune') !== fc) return;
     compte[ty.k] = (compte[ty.k]||0) + 1;
@@ -1160,6 +1265,8 @@ function refresh(){
     if(!actifs.includes(ty.k)) return;      // tout décoché = rien n'est affiché
     if(rv && !voirFaits) return;
     if(!rv && !voirAFaire) return;
+    comptePat[pat.s] = (comptePat[pat.s]||0) + 1;
+    if(!patActifs.includes(pat.s)) return;
 
     n++;
     if(rv) done++;
@@ -1168,10 +1275,11 @@ function refresh(){
     const mobile = window.innerWidth <= 860;
     const m = L.circleMarker([lat,lon], {
       radius: mobile ? 11 : 8,          // cible tactile plus large sur téléphone
-      fillColor: ty.c.trim(),
+      fillColor: couleurPatri ? patriCouleur(pat.s) : ty.c.trim(),
       fillOpacity: 0.92,
       color: rv ? '#2E7D32' : '#ffffff',
-      weight: rv ? 3.5 : (isAgrandissement(row) ? 3 : 1.5)
+      weight: rv ? 3.5 : (isAgrandissement(row) ? 3 : 1.5),
+      bubblingMouseEvents: false        // le clic sur un chantier n'interroge pas le cadastre
     });
 
     m._data = {id, row, lat, lon, ty};
@@ -1195,6 +1303,8 @@ function refresh(){
   if(bounds.length && !refresh._zoomed && map.getContainer().offsetWidth){ map.fitBounds(bounds, {padding:[30,30]}); refresh._zoomed = true; }
   fillCommunes();
   majPastilles(compte);
+  patriMajFiltres('#fPatri', comptePat);
+  patriPanneau(patCom, fc);
   if(prio) prioRender();   // la vue priorisation suit les relevés (faits / à faire)
 }
 
@@ -1289,6 +1399,7 @@ function popupHtml(d){
     <b>${titreSite(d)}</b> ${b}<br>
     <span class="l" data-adr="${d.id}">${adrCache[d.id] || ''}</span>
     <span class="l">${natureTravaux(d.row)}</span><br>
+    ${patriHtml(patriStatut(d.lat, d.lon))}
     ${th}
     <button style="margin-top:6px" onclick="void 0">Ouvrir la fiche</button>
   </div>`;
@@ -1329,6 +1440,11 @@ function openFiche(d){
 
   const body = document.getElementById('ficheBody');
   body.innerHTML = '';
+
+  // contraintes patrimoniales : en tête, c'est ce qui décide du délai (DP + avis ABF)
+  const fsPat = document.createElement('fieldset');
+  fsPat.innerHTML = `<legend>Contraintes patrimoniales</legend>${patriHtml(patriStatut(d.lat, d.lon), {long:true})}`;
+  body.append(fsPat);
 
   // position GPS relevée
   const fsGps = document.createElement('fieldset');
@@ -2104,7 +2220,7 @@ function parsePrio(wb){
 
 function prioErreur(msg){
   if(prio) return;
-  document.getElementById('pBody').innerHTML = `<tr><td colspan="7" class="empty">${esc(msg)}</td></tr>`;
+  document.getElementById('pBody').innerHTML = `<tr><td colspan="8" class="empty">${esc(msg)}</td></tr>`;
   document.getElementById('pCount').textContent = '—';
 }
 
@@ -2163,6 +2279,7 @@ function prioLier(){
     p.terrain = p.cle ? idx[p.cle] || null : null;
     p.id = p.terrain ? p.terrain.id : p.cle;
     p.rv = p.id ? releves[p.id] || null : null;
+    p.pat = p.lat!==null ? patriStatut(p.lat, p.lon) : patriStatut(null, null);
   });
 }
 
@@ -2183,12 +2300,16 @@ function prioFiltre(p, sauf){
     if(!document.querySelectorAll('#pEtats input')[j]?.checked) return false;
   }
   if(sauf!=='rv' && !document.querySelector(`#pRv input[value="${p.rv?'done':'todo'}"]`).checked) return false;
+  const cbPat = document.querySelector(`#pPatri input[value="${p.pat.s}"]`);
+  if(sauf!=='patri' && cbPat && !cbPat.checked) return false;
   return true;
 }
 
 const PRIO_TRI = {
   rang: p=>p.rang, ordre: p=>p.ordre ?? 1e9, commune: p=>p.commune, type: p=>p.ty.l, etat: p=>p.etat || '~',
   rv: p=> p.rv ? ['Simple','Vigilance','Complexe','Bloquant'].indexOf(p.rv.difficulte) + 1 : -1,
+  patri: p=> -PATRI_ST[p.pat.s].o,     // le plus contraignant en premier
+
   lat: p=> p.lat ?? 1e9
 };
 
@@ -2202,6 +2323,9 @@ function prioRender(o={}){
   document.getElementById('pEtats')._liste.forEach((e,j)=>{ document.querySelector(`[data-n="e-${j}"]`).textContent = cnt('etat', p=>p.etat===e); });
   document.querySelector('[data-n="done"]').textContent = cnt('rv', p=>!!p.rv);
   document.querySelector('[data-n="todo"]').textContent = cnt('rv', p=>!p.rv);
+  const cPat = {};
+  prio.forEach(p=>{ if(prioFiltre(p, 'patri')) cPat[p.pat.s] = (cPat[p.pat.s]||0) + 1; });
+  patriMajFiltres('#pPatri', cPat);
 
   const f = PRIO_TRI[pTri.k];
   pVisibles = prio.filter(p=>prioFiltre(p)).sort((a,b)=>{
@@ -2231,9 +2355,10 @@ function prioRender(o={}){
       <td><span class="ty" title="${esc(p.typeBrut)}"><span class="dot" style="background:${p.ty.c}"></span>${esc(typeCourt(p))}</span></td>
       <td>${etatHtml(p.etat)}</td>
       <td>${p.rv ? `<span class="badge ${badgeCls(p.rv.difficulte)}">${esc(p.rv.difficulte || 'Fait')}</span>` : '<span class="muted">—</span>'}</td>
+      <td>${patriBadge(p.pat)}</td>
       <td class="gps">${p.lat!==null ? `${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}` : '<span class="nogps-chip">sans coordonnées</span>'}</td>
     </tr>`).join('')
-    : `<tr><td colspan="7" class="empty">Aucun chantier ne correspond aux filtres.</td></tr>`;
+    : `<tr><td colspan="8" class="empty">Aucun chantier ne correspond aux filtres.</td></tr>`;
   phRender();
 
   if(!pmap) return;   // la carte est créée à la première ouverture de l'onglet
@@ -2278,6 +2403,7 @@ function prioPopup(p){
     <span class="ty" style="display:inline-flex;align-items:center;gap:6px;margin:5px 0"><span class="dot" style="background:${p.ty.c}"></span>${esc(p.typeBrut || p.ty.l)}</span>
     ${etatHtml(p.etat)}<br>
     <div style="margin-top:5px">${rv}</div>
+    ${patriHtml(p.pat)}
     <span class="l">${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}</span>
     <div class="acts">
       ${p.terrain ? `<button onclick="prioFiche(${p.i})">Fiche terrain</button>` : ''}
@@ -2321,8 +2447,9 @@ function initPrioMap(){
   const orth = L.tileLayer(ortho._url, ortho.options);
   suivreFond(base, orth, 'm2');
   base.addTo(pmap);
-  L.control.layers({'Plan (OpenFreeMap)':base, 'Satellite (IGN)':orth}, null, {position:'topright'}).addTo(pmap);
+  const ctl = L.control.layers({'Plan (OpenFreeMap)':base, 'Satellite (IGN)':orth}, null, {position:'topright'}).addTo(pmap);
   L.control.scale({imperial:false}).addTo(pmap);
+  patriAttacher(pmap, ctl, 'm2');
   pLayer = L.layerGroup().addTo(pmap);
   if(prio) prioCarte(true);
 }
@@ -2330,9 +2457,11 @@ function initPrioMap(){
 function prioCsv(){
   if(!pVisibles.length) return toast('Aucun chantier à exporter');
   const e = v => '"' + String(v ?? '').replace(/"/g,'""') + '"';
-  const t = [['Rang','Ordre commune','Code INSEE','Commune','Type','Existant / à créer','A faire','Latitude','Longitude','Relevé terrain','Difficulté']]
+  const t = [['Rang','Ordre commune','Code INSEE','Commune','Type','Existant / à créer','A faire','Latitude','Longitude','Relevé terrain','Difficulté',
+              'Contrainte patrimoniale','Zonages patrimoniaux']]
     .concat(pVisibles.map(p=>[p.rang, p.ordre ?? '', p.insee, p.commune, p.typeBrut, p.etat, p.afaire,
-      p.lat ?? '', p.lon ?? '', p.rv ? 'Fait' : 'À faire', p.rv ? p.rv.difficulte || '' : '']));
+      p.lat ?? '', p.lon ?? '', p.rv ? 'Fait' : 'À faire', p.rv ? p.rv.difficulte || '' : '',
+      patriLibelle(p.pat), patriZonagesTexte(p.pat)]));
   dl(`priorisation_chantiers_${new Date().toISOString().slice(0,10)}.csv`,
      '﻿' + t.map(l=>l.map(e).join(';')).join('\n'), 'text/csv;charset=utf-8');
 }
@@ -2361,14 +2490,14 @@ const prioFiltrer = ()=> prioRender({fit:true});
   clearTimeout(prioFiltrer._h); prioFiltrer._h = setTimeout(prioFiltrer, 250);
 }));
 document.getElementById('pCommune').onchange = prioFiltrer;
-['pTypes','pEtats','pRv'].forEach(id=> document.getElementById(id).addEventListener('change', prioFiltrer));
+['pTypes','pEtats','pRv','pPatri'].forEach(id=> document.getElementById(id).addEventListener('change', prioFiltrer));
 document.getElementById('pLigne').onchange = ()=> prioRender();
 document.getElementById('pFit').onclick = ()=> pmap && prioFit();
 document.getElementById('pCsv').onclick = prioCsv;
 document.getElementById('pCom').onclick = ()=> rapportCommunes(pVisibles);
 document.getElementById('pReset').onclick = ()=>{
   ['pQ','pMin','pMax','pCommune'].forEach(id=> document.getElementById(id).value = '');
-  document.querySelectorAll('#pPanel #pTypes input, #pPanel #pEtats input, #pPanel #pRv input').forEach(i=> i.checked = true);
+  document.querySelectorAll('#pPanel #pTypes input, #pPanel #pEtats input, #pPanel #pRv input, #pPanel #pPatri input').forEach(i=> i.checked = true);
   prioFiltrer();
 };
 document.querySelectorAll('.pt th').forEach(th=> th.onclick = ()=>{
@@ -2386,7 +2515,8 @@ document.getElementById('pBody').addEventListener('click', e=>{
    rythme de dalles par semaine ; la dernière phase reçoit le reste
    (vue réservée à l'ordinateur)
    ======================================================================= */
-const PH_DEF = {feries:true, bloq:[], duree:{simple:2, pdr:3, vig:0, cplx:0.5, bloq:2}, phases:[
+// abf : délai de la déclaration préalable avec avis de l'ABF (jours calendaires), pour les chantiers en zonage patrimonial
+const PH_DEF = {feries:true, bloq:[], abf:60, duree:{simple:2, pdr:3, vig:0, cplx:0.5, bloq:2}, phases:[
   {nom:'Phase 1', du:'2026-11-01', au:'2027-03-31', rythme:2.5},
   {nom:'Phase 2', du:'2027-04-01', au:'2027-11-01', rythme:3.5},
   {nom:'Phase 3', du:'2027-11-02', au:'',           rythme:3.5}
@@ -2466,6 +2596,15 @@ const phDuree = p => phBase(p) + phSupp(p);
 // jours de chantier abattus par jour ouvré : « rythme » dalles simples par semaine de 5 jours
 const phParJour = f => f.rythme * phP.duree.simple / 5;
 
+// chantier en zonage patrimonial (⛔ 🔴 🟠) : la DP avec avis ABF doit être déposée avant
+// (début du coulage − démarches amont − délai ABF) ; null si le chantier n'est pas concerné
+const PH_ABF = ['bloq', 'rouge', 'orange'];
+function phAbf(p, dt){
+  if(!p.pat || !PH_ABF.includes(p.pat.s)) return null;
+  const avant = dt && dt.du ? phPlus(dt.du, -(phDelaiAmont() + phP.abf)) : null;
+  return {s:p.pat.s, avant, late: !!avant && avant < phAuj()};
+}
+
 function phInit(){
   let mem = null;
   try { mem = JSON.parse(localStorage.getItem(PH_CLE)); } catch(e){}
@@ -2495,6 +2634,7 @@ function phVersChamps(){
     </div>`).join('');
   document.getElementById('hFeries').checked = phP.feries;
   document.querySelectorAll('#hDur [data-d]').forEach(el=> el.value = phP.duree[el.dataset.d]);
+  document.getElementById('hAbfJ').value = phP.abf;
   const d = phP.duree, eq = d.pdr / d.simple;
   document.getElementById('hDurInfo').textContent = (d.pdr === d.simple
     ? 'Toutes les dalles ont la même durée.'
@@ -2555,6 +2695,17 @@ function phCalculer(liste){
     if(r.items.length){
       r.dates = phDates(r, parJour);
       r.amont = phPlus(du, -phDelaiAmont());
+      // avis ABF : nombre de chantiers concernés et première DP à déposer
+      r.abf = r.items.map((p, k)=> phAbf(p, r.dates[k]));
+      const abf = r.abf.filter(Boolean), dts = abf.map(a=> a.avant).filter(Boolean);
+      r.abfN = abf.length;
+      r.abfAvant = dts.length ? new Date(Math.min(...dts)) : null;
+      if(r.abfN){
+        const late = r.abfAvant && r.abfAvant < phAuj(), nbc = abf.filter(a=> a.s === 'bloq').length;
+        r.al.push([late ? 'late' : '', `${r.abfN} chantier${phS(r.abfN)} soumis à l'avis ABF : première DP à déposer avant le `
+          + `${r.abfAvant ? phFr(r.abfAvant) : '?'}${late ? ' (date dépassée)' : ''}.`
+          + (nbc ? ` Dont ${nbc} en site classé : autorisation spéciale, délai non estimable.` : '')]);
+      }
     }
     finPrec = r.au || finPrec;
     return r;
@@ -2606,6 +2757,10 @@ function phRender(){
   document.getElementById('hAmontInfo').textContent =
     `Démarches amont comptées ${phDelaiAmont()} jours avant le premier coulage de chaque phase `
     + (phAmont.src ? `(délais de l'onglet « ${phAmont.src} »).` : '(valeurs par défaut : onglet RETROPLANNING introuvable).');
+  document.getElementById('hAbfInfo').textContent =
+    `Chantiers ⛔ 🔴 🟠 : DP à déposer avant le coulage − ${phDelaiAmont()} j de démarches amont − ${phP.abf} j d'avis ABF. `
+    + 'Site classé ⛔ : autorisation spéciale, délai réel souvent plus long. L\'ordre des chantiers n\'est pas modifié.'
+    + (PATRI.etat === 'ok' ? '' : ' Analyse patrimoniale indisponible : aucun chantier compté.');
   document.getElementById('hResume').innerHTML = avec.length
     ? `<b>${phListe.length}</b> chantier${phS(phListe.length)} en <b>${avec.length}</b> phase${phS(avec.length)}`
       + `, du ${phFr(avec[0].du, {day:'numeric', month:'long', year:'numeric'})} au ${phFr(fin, {day:'numeric', month:'long', year:'numeric'})} (estimation)`
@@ -2744,6 +2899,7 @@ function phCartes(){
         ${r.items.length && r.ouvres ? `<dt>Soit en moyenne</dt><dd>${phNb(r.items.length / (r.ouvres / 5))} dalle${phS(r.items.length / (r.ouvres / 5))} / sem.</dd>` : ''}
         <dt>Communes</dt><dd>${com}</dd>
         <dt>Rangs de priorité</dt><dd>${rangs}</dd>
+        ${r.abfN ? `<dt>Soumis à l'avis ABF</dt><dd>${r.abfN}</dd>` : ''}
       </dl>
       <div class="tys">${types.map(x=> `<span><i class="dot" style="background:var(${x.t.c})"></i>${x.t.l} ${x.n}</span>`).join('')}</div>
       ${r.al.map(([c, m])=> `<div class="al ${c}">⚠ ${esc(m)}</div>`).join('')}
@@ -2753,9 +2909,10 @@ function phCartes(){
 
 function phTableau(){
   return `<table class="pt"><thead><tr>
-      <th title="Ordre dans la phase">#</th><th>N°</th><th>Commune</th><th>Type</th><th title="Jours ouvrés">Durée</th><th>Coulage estimé</th><th>Existant / à créer</th><th>Relevé</th><th>Coordonnées GPS</th>
+      <th title="Ordre dans la phase">#</th><th>N°</th><th>Commune</th><th>Type</th><th title="Jours ouvrés">Durée</th><th>Coulage estimé</th><th>Existant / à créer</th><th>Relevé</th>
+      <th title="Contrainte patrimoniale (avis de l'ABF)">Patrimoine</th><th title="Date limite de dépôt de la déclaration préalable (avis ABF)">DP ABF avant le</th><th>Coordonnées GPS</th>
     </tr></thead><tbody>${phRes.map(r=>`
-    <tr class="hgrp"><td colspan="9" style="border-bottom-color:${r.c}; color:${r.c}"><b>${esc(r.f.nom)}</b><span>${r.items.length} chantier${phS(r.items.length)}
+    <tr class="hgrp"><td colspan="11" style="border-bottom-color:${r.c}; color:${r.c}"><b>${esc(r.f.nom)}</b><span>${r.items.length} chantier${phS(r.items.length)}
       dont ${phNbPdr(r.items)} PDR · ${phNb(r.charge)} j de chantier
       · ${r.du ? phFr(r.du) : '?'} → ${r.der && r.au ? '≈ ' : ''}${r.au ? phFr(r.au) : '?'} · ${phNb(r.f.rythme)} dalle${phS(r.f.rythme)} simple${phS(r.f.rythme)} / semaine</span></td></tr>
     ${r.items.length ? r.items.map((p, k)=>`
@@ -2769,11 +2926,18 @@ function phTableau(){
       <td class="muted">${phPer(r.dates[k])}</td>
       <td>${etatHtml(p.etat)}</td>
       <td>${p.rv ? `<span class="badge ${badgeCls(p.rv.difficulte)}">${esc(p.rv.difficulte || 'Fait')}</span>` : '<span class="muted">—</span>'}</td>
+      <td>${patriBadge(p.pat)}</td>
+      <td>${phAbfHtml(r.abf && r.abf[k])}</td>
       <td class="gps">${p.lat!==null ? `<a class="gpsl" href="${phGmaps(p)}" target="_blank" rel="noopener" title="Ouvrir dans Google Maps">${p.lat.toFixed(5)}, ${p.lon.toFixed(5)} ↗</a>`
         : '<span class="nogps-chip">sans coordonnées</span>'}</td>
-    </tr>`).join('') : '<tr><td colspan="9" class="empty">Aucun chantier dans cette phase.</td></tr>'}`).join('')}
+    </tr>`).join('') : '<tr><td colspan="11" class="empty">Aucun chantier dans cette phase.</td></tr>'}`).join('')}
   </tbody></table>`;
 }
+
+const phAbfTxt = a => !a ? '' : (a.avant ? phFr(a.avant) : '?') + (a.s === 'bloq' ? ' (site classé : délai non estimable)' : '') + (a.late ? ' (dépassée)' : '');
+const phAbfHtml = a => !a ? '<span class="muted">—</span>'
+  : `<span class="ph-abf${a.late ? ' late' : ''}" title="${a.s === 'bloq' ? 'Site classé : autorisation spéciale, délai réel non estimable' : 'Coulage − démarches amont − délai ABF'}">`
+    + `${a.avant ? phFr(a.avant) : '?'}${a.s === 'bloq' ? ' ⛔' : ''}${a.late ? ' ⚠' : ''}</span>`;
 
 /* ---------- Export Excel : synthèse, tous les chantiers, un onglet par phase ---------- */
 function phExport(){
@@ -2781,17 +2945,19 @@ function phExport(){
   const dates = r => [r.du ? phFr(r.du) : '', r.au ? (r.der ? phFr(r.au) + ' (estimée)' : phFr(r.au)) : ''];
   const ENT = ['N° dans la phase', 'Rang de priorité', 'Ordre commune', 'Commune', 'Code INSEE', 'Type de chantier',
                'Durée (jours ouvrés)', 'Début estimé', 'Fin estimée',
-               'Existant / à créer', 'À faire', 'Latitude', 'Longitude', 'Coordonnées GPS (Google Maps)', 'Relevé terrain'];
-  const LARG = [9, 9, 9, 24, 10, 30, 10, 12, 12, 18, 30, 11, 11, 26, 13];
+               'Existant / à créer', 'À faire', 'Latitude', 'Longitude', 'Coordonnées GPS (Google Maps)', 'Relevé terrain',
+               'Contrainte patrimoniale', 'DP ABF avant le'];
+  const LARG = [9, 9, 9, 24, 10, 30, 10, 12, 12, 18, 30, 11, 11, 26, 13, 20, 16];
   const ligne = (p, k, dt) => [k+1, p.rang, p.ordre ?? '', p.commune, p.insee, p.typeBrut || p.ty.l,
     phDuree(p), dt && dt.du ? phFr(dt.du) : '', dt && dt.au ? phFr(dt.au) : '', p.etat, p.afaire,
     p.lat ?? '', p.lon ?? '', p.lat!==null ? `${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}` : 'sans coordonnées',
-    p.rv ? (p.rv.difficulte || 'Fait') : 'À faire'];
+    p.rv ? (p.rv.difficulte || 'Fait') : 'À faire',
+    patriLibelle(p.pat), phAbfTxt(phAbf(p, dt))];
 
   // feuille de chantiers : en-tête, filtre automatique et coordonnées cliquables
   const feuille = (lignes, items, decal) => {
     const ws = XLSX.utils.aoa_to_sheet(lignes);
-    const cGps = ENT.length - 2 + decal;
+    const cGps = ENT.indexOf('Coordonnées GPS (Google Maps)') + decal;
     items.forEach((p, k)=>{
       if(p.lat===null) return;
       const c = ws[XLSX.utils.encode_cell({r:k+1, c:cGps})];
@@ -2813,14 +2979,16 @@ function phExport(){
       + ' Le rythme des phases est exprimé en dalles simples par semaine.'],
     [],
     ['Phase', 'Début', 'Fin', 'Dalles simples / semaine', 'Semaines ouvrées', 'Capacité (jours de chantier)',
-     'Jours de chantier affectés', 'Chantiers affectés', 'dont PDR', 'Communes', 'Rangs de priorité', 'Démarches amont avant le']
+     'Jours de chantier affectés', 'Chantiers affectés', 'dont PDR', 'Communes', 'Rangs de priorité', 'Démarches amont avant le',
+     'Soumis à l\'avis ABF', 'Démarches ABF avant le']
   ].concat(phRes.map(r=> [r.f.nom, ...dates(r), r.f.rythme, Math.round(r.ouvres / 5 * 10) / 10, r.der ? '' : Math.round(r.cap * 10) / 10,
       Math.round(r.charge * 10) / 10, r.items.length, phNbPdr(r.items), new Set(r.items.map(p=> p.commune)).size,
-      r.items.length ? `${r.items[0].rang} → ${r.items[r.items.length-1].rang}` : '', r.amont ? phFr(r.amont) : '']),
+      r.items.length ? `${r.items[0].rang} → ${r.items[r.items.length-1].rang}` : '', r.amont ? phFr(r.amont) : '',
+      r.abfN || '', r.abfAvant ? phFr(r.abfAvant) : '']),
     [['Total', '', '', '', '', '', Math.round(phRes.reduce((t, r)=> t + r.charge, 0) * 10) / 10, phListe.length,
       phNbPdr(phListe), new Set(phListe.map(p=> p.commune)).size]]);
   const ws0 = XLSX.utils.aoa_to_sheet(synth);
-  ws0['!cols'] = [18, 12, 22, 15, 16, 18, 18, 17, 10, 10, 16, 22].map(w=> ({wch:w}));
+  ws0['!cols'] = [18, 12, 22, 15, 16, 18, 18, 17, 10, 10, 16, 22, 14, 20].map(w=> ({wch:w}));
   XLSX.utils.book_append_sheet(wb, ws0, 'Synthèse');
 
   const tous = phRes.flatMap(r=> r.items.map((p, k)=> ({p, k, r})));
@@ -2996,6 +3164,17 @@ document.getElementById('hDur').addEventListener('click', e=>{
   const k = b.parentNode.querySelector('input').dataset.d;
   phDureeMaj(k, phP.duree[k] + +b.dataset.dpas);
 });
+// délai ABF : jours calendaires, de 0 à 365
+const phAbfMaj = v => { phP.abf = Math.min(365, Math.max(0, Math.round(v))); phMaj(true); };
+document.getElementById('hAbf').addEventListener('change', e=>{
+  if(e.target.id !== 'hAbfJ') return;
+  const v = nb(e.target.value);
+  v === null ? phMaj(true) : phAbfMaj(v);
+});
+document.getElementById('hAbf').addEventListener('click', e=>{
+  const b = e.target.closest('button[data-apas]');
+  if(b) phAbfMaj(phP.abf + +b.dataset.apas);
+});
 document.getElementById('hBAdd').onclick = ()=>{
   let du = document.getElementById('hBDu').value, au = document.getElementById('hBAu').value || du;
   if(!phDeIso(du)) return toast('Indique au moins la date de début de la période');
@@ -3058,6 +3237,692 @@ document.getElementById('hScroll').addEventListener('click', e=>{
 phInit();
 
 /* =======================================================================
+   PATRIMOINE (ABF) — zonages patrimoniaux, statut de chaque chantier, cadastre
+   Sources :
+   - servitudes d'utilité publique du Géoportail de l'urbanisme (WFS Géoplateforme, wfs_sup:assiette_sup_s) :
+     AC1 abords des monuments historiques (PDA ou rayon de 500 m), AC2 sites inscrits / classés,
+     AC4 sites patrimoniaux remarquables ;
+   - inscrit ou classé : couche DREAL des sites (CONFIG.STE_LAYER), reliée par l'identifiant de servitude ;
+   - monuments historiques en points : base Mérimée (API tabulaire data.gouv.fr) ;
+   - contours des communes : geo.api.gouv.fr.
+   Les données sont lues dans CONFIG.PATRIMOINE_GEOJSON (dépôt) ; à défaut, en direct ; à défaut,
+   les chantiers sont « Non analysé » (jamais « hors zone »).
+   Ordre des axes en EPSG:4326 avec GeoServer (vérifié) : BBOX() dans un CQL_FILTER = lon,lat ;
+   paramètre BBOX= avec urn:ogc:def:crs:EPSG::4326 = lat,lon ; GeoJSON renvoyé = [lon, lat].
+   ======================================================================= */
+
+// statuts, du plus au moins contraignant (o = ordre de gravité)
+const PATRI_ST = {
+  bloq  : {o:5, e:'⛔', l:'Site classé',  c:'--p-bloq',   proc:'Autorisation spéciale (site classé) : potentiellement bloquant, à signaler'},
+  rouge : {o:4, e:'🔴', l:'ABF certain',  c:'--p-rouge',  proc:'Déclaration préalable + avis ABF certain (2 mois au moins, prescriptions possibles)'},
+  orange: {o:3, e:'🟠', l:'ABF probable', c:'--p-orange', proc:'Déclaration préalable probable, avis ABF selon la covisibilité (appréciée par l\'ABF)'},
+  conf  : {o:2, e:'⚪', l:'À confirmer',  c:'--p-conf',   proc:'Commune sans donnée SUP patrimoniale : à confirmer auprès de l\'UDAP du Calvados'},
+  vert  : {o:1, e:'🟢', l:'Hors zonage',  c:'--p-vert',   proc:'Hors zonage patrimonial connu : procédure normale'},
+  na    : {o:0, e:'❔', l:'Non analysé',  c:'--p-na',     proc:'Analyse patrimoniale indisponible pour ce chantier'}
+};
+const PATRI_ORDRE = ['bloq', 'rouge', 'orange', 'conf', 'vert', 'na'];
+// catégories de zonage : statut induit, libellé, style sur la carte
+const PATRI_CAT = {
+  site_c: {s:'bloq',   l:'Site classé',                              st:{color:'#4A148C', weight:2,   fillOpacity:.18}},
+  site_x: {s:'bloq',   l:'Site protégé (inscrit ou classé : à vérifier)', st:{color:'#4A148C', weight:2, fillOpacity:.18, dashArray:'2 4'}},
+  pda   : {s:'rouge',  l:'Périmètre délimité des abords (PDA)',      st:{color:'#C62828', weight:2,   fillOpacity:.14}},
+  mhemp : {s:'rouge',  l:'Emprise d\'un monument historique',        st:{color:'#7B1A1A', weight:1,   fillOpacity:.5}},
+  spr   : {s:'rouge',  l:'Site patrimonial remarquable (SPR)',       st:{color:'#AD1457', weight:3,   fillOpacity:.10}},
+  site_i: {s:'rouge',  l:'Site inscrit',                             st:{color:'#8E24AA', weight:1.5, fillOpacity:.07, dashArray:'6 4'}},
+  mh500 : {s:'orange', l:'Abords MH : rayon de 500 m',               st:{color:'#EF6C00', weight:1.5, fillOpacity:.08}},
+  theo  : {s:'orange', l:'Abords MH : périmètre théorique de 500 m', st:{color:'#EF6C00', weight:2,   fillOpacity:.03, dashArray:'3 6'}}
+};
+// couches proposées dans le sélecteur, de la plus étendue (dessous) à la plus précise (dessus)
+const PATRI_COUCHES = [
+  {k:'site_i', l:'Sites inscrits (AC2)',                       cats:['site_i']},
+  {k:'site_c', l:'Sites classés (AC2)',                        cats:['site_c', 'site_x']},
+  {k:'mh500',  l:'Abords MH : rayon de 500 m (AC1)',           cats:['mh500']},
+  {k:'theo',   l:'Abords MH : « périmètre théorique » 500 m',   cats:['theo']},
+  {k:'pda',    l:'Abords MH : PDA et emprises des MH (AC1)',   cats:['pda', 'mhemp']},
+  {k:'spr',    l:'Sites patrimoniaux remarquables (AC4)',      cats:['spr']}
+];
+const CADASTRE_URL = 'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=CADASTRALPARCELS.PARCELLAIRE_EXPRESS'
+  + '&STYLE=PCI%20vecteur&FORMAT=image%2Fpng&TILEMATRIXSET=PM_0_19&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}';
+
+const PATRI = {etat:'attente', src:'', err:'', meta:null, data:null, zones:[], mh:[], communes:[], cache:{}, cartes:[]};
+let couleurMode = 'type';
+try { if(localStorage.getItem('ncpa_couleur_marqueurs') === 'patri') couleurMode = 'patri'; } catch(e){}
+
+/* ---------- Outils ---------- */
+// requête avec délai maximum (un service qui ne répond pas ne bloque jamais l'outil)
+async function patriFetch(url, ms, texte){
+  const ac = new AbortController(), h = setTimeout(()=> ac.abort(), ms || 20000);
+  try{
+    const r = await fetch(url, {signal:ac.signal});
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    return texte ? await r.text() : await r.json();
+  }catch(e){
+    throw new Error(e.name === 'AbortError' ? 'délai dépassé' : e.message);
+  }finally{ clearTimeout(h); }
+}
+// avec deux nouvelles tentatives : ces services saturent parfois quelques secondes
+async function patriFetchR(url, ms){
+  for(let i = 1; ; i++){
+    try { return await patriFetch(url, ms); }
+    catch(e){ if(i >= 3) throw e; await pause(800 * i); }
+  }
+}
+// textes mal encodés dans les servitudes (« ChÃ¢teau ») : UTF-8 lu comme Latin-1 / Windows-1252
+const CP1252 = {'€':0x80,'‚':0x82,'ƒ':0x83,'„':0x84,'…':0x85,'†':0x86,'‡':0x87,'ˆ':0x88,'‰':0x89,'Š':0x8A,'‹':0x8B,'Œ':0x8C,
+  'Ž':0x8E,'‘':0x91,'’':0x92,'“':0x93,'”':0x94,'•':0x95,'–':0x96,'—':0x97,'˜':0x98,'™':0x99,'š':0x9A,'›':0x9B,'œ':0x9C,'ž':0x9E,'Ÿ':0x9F};
+function patriTexte(s){
+  s = String(s ?? '').trim();
+  if(!/[ÃÂÅ]/.test(s)) return s;
+  try{
+    const b = Uint8Array.from(s, ch=>{ const c = ch.charCodeAt(0); if(c < 256) return c; if(CP1252[ch]) return CP1252[ch]; throw 0; });
+    return new TextDecoder('utf-8', {fatal:true}).decode(b);
+  }catch(e){ return s; }
+}
+const patriIdSup = idgen => String(idgen || '').replace(/-\d+$/, '');     // AC2-130006265-906-1 → AC2-130006265-906
+const patriBbox = (a, b) => a[0] <= b[2] && a[2] >= b[0] && a[1] <= b[3] && a[3] >= b[1];
+function patriDans(pt, z){
+  return pt[0] >= z.bb[0] && pt[0] <= z.bb[2] && pt[1] >= z.bb[1] && pt[1] <= z.bb[3] && turf.booleanPointInPolygon(pt, z.f);
+}
+const patriMots = s => new Set(String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  .split(/[^a-z0-9]+/).filter(w=> w.length >= 4 && !['dite', 'ancien', 'ancienne', 'restes', 'vieilles'].includes(w)));
+const patriCommun = (a, b) => { const A = patriMots(a); return [...patriMots(b)].some(w=> A.has(w)); };
+const patriCouleur = s => getComputedStyle(document.documentElement).getPropertyValue(PATRI_ST[s].c).trim();
+const patriFr = iso => { const d = iso ? new Date(iso) : null; return d && !isNaN(d) ? d.toLocaleDateString('fr-FR') : '?'; };
+
+/* ---------- Construction des données (mise à jour, ou secours en direct) ---------- */
+async function patriConstruire(etape){
+  etape = etape || (()=>{});
+  const avert = [];
+  const wfs = CONFIG.WFS + '?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&OUTPUTFORMAT=application/json&SRSNAME=EPSG:4326';
+
+  // 1. communes de l'EPCI et leurs contours → emprise de recherche (+ ≈ 1,4 km)
+  etape('Communes de l\'EPCI…');
+  const com = await patriFetchR(`https://geo.api.gouv.fr/epcis/${encodeURIComponent(CONFIG.EPCI)}/communes?fields=nom,code,contour&format=geojson&geometry=contour`);
+  if(!com.features || !com.features.length) throw new Error('aucune commune trouvée pour l\'EPCI ' + CONFIG.EPCI);
+  const b0 = turf.bbox(com), bb = [b0[0]-0.02, b0[1]-0.012, b0[2]+0.02, b0[3]+0.012];
+
+  // 2. servitudes AC1 / AC2 / AC4 (surfaces ; les variantes _l et _p sont vides sur le territoire)
+  etape('Servitudes patrimoniales (IGN)…');
+  const cql = `suptype IN ('ac1','ac2','ac4') AND BBOX(the_geom,${bb.join(',')},'EPSG:4326')`;   // CQL : lon,lat
+  const sup = await patriFetchR(`${wfs}&TYPENAMES=wfs_sup:assiette_sup_s&COUNT=5000&CQL_FILTER=${encodeURIComponent(cql)}`, 60000);
+  if(!Array.isArray(sup.features)) throw new Error('réponse du WFS des servitudes invalide');
+  if(!sup.features.length) throw new Error('aucune servitude AC1 / AC2 / AC4 renvoyée : service incomplet ?');
+
+  // 3. sites : inscrit ou classé
+  etape('Sites inscrits / classés (DREAL)…');
+  const ids = [...new Set(sup.features.filter(f=> f.properties.suptype === 'ac2').map(f=> patriIdSup(f.properties.idgen)))];
+  const sites = await patriSites(wfs, ids, avert);
+
+  // 4. monuments historiques (Mérimée), dans l'emprise
+  const codes = new Set(com.features.map(f=> String(f.properties.code)));
+  const {mh, sansCoord} = await patriMerimee(bb, codes, etape);
+
+  etape('Assemblage des données…');
+  const zones = sup.features.filter(f=> f.geometry).map(f=>{
+    const p = f.properties, idsup = patriIdSup(p.idgen), t = String(p.suptype).toLowerCase();
+    const ts = sites[idsup] ? sites[idsup].type : '';
+    const cat = t === 'ac4' ? 'spr'
+      : t === 'ac2' ? (/class/i.test(ts) ? 'site_c' : /inscrit/i.test(ts) ? 'site_i' : 'site_x')
+      : /abords/i.test(p.typeass) ? (/tampon/i.test(p.modegeoass) ? 'mh500' : 'pda') : 'mhemp';
+    const nom = patriTexte(p.nomsuplitt) || (sites[idsup] && sites[idsup].nom) || p.nomass || '';
+    return turf.truncate({type:'Feature', geometry:f.geometry, properties:{_c:'zone', cat, sup:t.toUpperCase(), nom,
+      idass:p.idass || '', idgen:p.idgen || '', idsup, typeass:patriTexte(p.typeass), modegeoass:patriTexte(p.modegeoass),
+      typesite:ts, date:p.datesrcass || '', maj:String(p.gpu_timestamp || '').slice(0, 10), acte:p.fichier || ''}},
+      {precision:6, mutate:true});
+  });
+  if(zones.some(z=> z.properties.cat === 'site_x'))
+    avert.push('Type de certains sites inconnu : traités comme sites classés (⛔), à vérifier.');
+
+  // nom lisible des abords : monument Mérimée situé dans l'emprise du MH, ou à défaut le plus proche (même nom)
+  const emp = zones.filter(z=> z.properties.cat === 'mhemp');
+  zones.forEach(z=>{
+    const p = z.properties;
+    if(p.cat !== 'mhemp' && p.cat !== 'mh500') return;
+    const e = p.cat === 'mhemp' ? z : emp.find(x=> x.properties.idgen === p.idgen);
+    let best = e ? (mh.filter(m=> turf.booleanPointInPolygon(m, e)).sort((a, b)=> patriCommun(b.properties.nom, p.nom) - patriCommun(a.properties.nom, p.nom))[0]) : null;
+    if(!best){
+      const c = turf.centroid(e || z);
+      let dmin = e ? 0.15 : 0.25;
+      mh.forEach(m=>{
+        const d = turf.distance(c, m);
+        if(d < dmin && (!patriMots(p.nom).size || patriCommun(m.properties.nom, p.nom))){ dmin = d; best = m; }
+      });
+    }
+    if(best){ const q = best.properties; p.mh = {ref:q.ref, nom:q.nom, statut:q.statut, commune:q.commune}; }
+  });
+
+  // communes : présence de données SUP patrimoniales, nombre de MH
+  const zbb = zones.map(z=> turf.bbox(z));
+  const communes = com.features.map(f=>{
+    const cb = turf.bbox(f);
+    const supOk = zones.some((z, i)=> patriBbox(cb, zbb[i]) && turf.booleanIntersects(f, z));
+    const nbMH = mh.filter(m=> turf.booleanPointInPolygon(m, f)).length;
+    return turf.truncate({type:'Feature', geometry:f.geometry,
+      properties:{_c:'commune', code:String(f.properties.code), nom:f.properties.nom, sup:supOk, nbMH}}, {precision:6, mutate:true});
+  });
+
+  const maj = zones.map(z=> z.properties.maj).filter(Boolean).sort().pop() || '';
+  return {
+    type:'FeatureCollection',
+    metadata:{
+      titre:'Zonages patrimoniaux (ABF) — NCPA', version:1, date:new Date().toISOString(), epci:CONFIG.EPCI, emprise:bb,
+      gpu_maj:maj, couche_sites:sites._couche || CONFIG.STE_LAYER,
+      sources:[
+        'Servitudes d\'utilité publique AC1, AC2, AC4 : Géoportail de l\'urbanisme, WFS Géoplateforme IGN (wfs_sup:assiette_sup_s)',
+        'Sites inscrits et classés : DREAL, WFS Géoplateforme IGN (' + (sites._couche || CONFIG.STE_LAYER) + ')',
+        'Immeubles protégés au titre des monuments historiques : base Mérimée, ministère de la Culture (data.gouv.fr)',
+        'Contours des communes : geo.api.gouv.fr (EPCI ' + CONFIG.EPCI + ')'
+      ],
+      compte:{zones:zones.length, mh:mh.length, communes:communes.length},
+      mhSansCoord:sansCoord, avert
+    },
+    features:zones.concat(mh, communes)
+  };
+}
+
+// type (inscrit / classé) et nom des sites, par identifiant de servitude
+async function patriSites(wfs, ids, avert){
+  const sites = {};
+  // types déjà connus (données actuelles) : repli si la couche DREAL est introuvable
+  PATRI.zones.forEach(z=>{ if(z.p.idsup && z.p.typesite) sites[z.p.idsup] = {type:z.p.typesite, nom:''}; });
+  if(!ids.length) return sites;
+  const lire = async couche=>{
+    const cql = `idsup IN (${ids.map(i=> `'${i.replace(/'/g, "''")}'`).join(',')})`;
+    const j = await patriFetchR(`${wfs}&TYPENAMES=${encodeURIComponent(couche)}&PROPERTYNAME=idsup,nomgen,typesite&CQL_FILTER=${encodeURIComponent(cql)}`);
+    if(!Array.isArray(j.features)) throw new Error('réponse invalide');
+    j.features.forEach(f=>{ sites[f.properties.idsup] = {type:f.properties.typesite || '', nom:patriTexte(f.properties.nomgen)}; });
+    sites._couche = couche;
+  };
+  try { await lire(CONFIG.STE_LAYER); }
+  catch(e){
+    // le nom de la couche contient sa date de publication : on cherche la plus récente dans les capacités du service
+    try{
+      const cap = await patriFetch(CONFIG.WFS + '?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetCapabilities', 60000, true);
+      const noms = [...cap.matchAll(/<Name>(sites_metropole[^<:]*:STE_Metropole)<\/Name>/g)].map(m=> m[1]);
+      const date = n => (n.match(/(\d{2})-(\d{2})-(\d{4})/) || []).slice(1).reverse().join('');
+      const nom = noms.sort((a, b)=> date(b).localeCompare(date(a)))[0];
+      if(!nom) throw new Error('couche introuvable');
+      await lire(nom);
+      avert.push(`La couche DREAL des sites s'appelle désormais « ${nom} » : mettre à jour STE_LAYER dans la configuration.`);
+    }catch(e2){
+      avert.push('Couche DREAL des sites inscrits / classés indisponible : types repris des données précédentes.');
+    }
+  }
+  return sites;
+}
+
+// immeubles protégés MH du département, gardés dans l'emprise ; ceux sans coordonnées sur NCPA sont signalés
+async function patriMerimee(bb, codes, etape){
+  const cols = ['Reference', 'Titre_editorial_de_la_notice', 'Typologie_de_la_protection', 'Commune_forme_editoriale',
+                'COG_Insee_lors_de_la_protection', 'coordonnees_au_format_WGS84'];
+  let url = `${CONFIG.MERIMEE_API}?Departement_format_numerique__exact=${encodeURIComponent(CONFIG.DEPARTEMENT)}&page_size=200&columns=${cols.join(',')}`;
+  const mh = [], sansCoord = [];
+  for(let page = 1; url && page <= 40; page++){
+    etape(`Monuments historiques (Mérimée)… page ${page}`);
+    const j = await patriFetchR(url, 30000);
+    if(!Array.isArray(j.data)) throw new Error('réponse Mérimée invalide');
+    j.data.forEach(r=>{
+      const nom = String(r.Titre_editorial_de_la_notice || '').trim() || r.Reference;
+      const c = String(r.coordonnees_au_format_WGS84 || '').split(',').map(x=> parseFloat(x));
+      if(c.length !== 2 || c.some(isNaN)){
+        if(codes.has(String(r.COG_Insee_lors_de_la_protection)))
+          sansCoord.push({ref:r.Reference, nom, commune:r.Commune_forme_editoriale || ''});
+        return;
+      }
+      const [lat, lon] = c;
+      if(lon < bb[0] || lon > bb[2] || lat < bb[1] || lat > bb[3]) return;
+      const t = String(r.Typologie_de_la_protection || '').toLowerCase(), cl = /class/.test(t), ins = /inscrit/.test(t);
+      mh.push(turf.point([+lon.toFixed(6), +lat.toFixed(6)], {_c:'mh', ref:r.Reference, nom,
+        statut: cl && ins ? 'Classé et inscrit' : cl ? 'Classé' : ins ? 'Inscrit' : 'Protégé',
+        partiel: /partiel/.test(t), protection: String(r.Typologie_de_la_protection || '').replace(/;/g, ', '),
+        commune: r.Commune_forme_editoriale || '', insee: String(r.COG_Insee_lors_de_la_protection || '')}));
+    });
+    url = j.links && j.links.next;
+  }
+  return {mh, sansCoord};
+}
+
+/* ---------- Données en mémoire ---------- */
+function patriAppliquer(fc, src){
+  if(!fc || !Array.isArray(fc.features)) throw new Error('fichier illisible');
+  const zones = [], mh = [], communes = [];
+  fc.features.forEach(f=>{
+    const p = f.properties || {};
+    if(!f.geometry) return;
+    if(p._c === 'zone' && PATRI_CAT[p.cat] && p.cat !== 'theo') zones.push({f, p, bb:turf.bbox(f)});
+    else if(p._c === 'mh') mh.push(f);
+    else if(p._c === 'commune') communes.push({f, p, bb:turf.bbox(f)});
+  });
+  if(!zones.length || !communes.length) throw new Error('aucun zonage ou aucune commune dans les données');
+  // repli : monument Mérimée hors de toute servitude AC1 (et hors SPR, où les abords ne s'appliquent pas)
+  // → tampon de 500 m calculé, dit « périmètre théorique »
+  const couvrants = zones.filter(z=> ['pda', 'mh500', 'mhemp', 'spr'].includes(z.p.cat));
+  mh.forEach(m=>{
+    const pr = m.properties;
+    if(couvrants.some(z=> patriDans(m.geometry.coordinates, z))) return;
+    const c = turf.circle(m.geometry.coordinates, 0.5, {units:'kilometers', steps:64,
+      properties:{_c:'zone', cat:'theo', sup:'AC1', nom:pr.nom, mh:{ref:pr.ref, nom:pr.nom, statut:pr.statut, commune:pr.commune}}});
+    zones.push({f:c, p:c.properties, bb:turf.bbox(c)});
+  });
+  Object.assign(PATRI, {etat:'ok', src, err:'', meta:fc.metadata || {}, data:fc, zones, mh, communes, cache:{}});
+  patriRemplir();
+  patriEtat();
+  refresh();
+  if(prio) prioRender();
+}
+
+async function patriCharger(){
+  Busy.start('patri', 'Zonages patrimoniaux…', {quiet:true, max:120000});
+  try{
+    try{
+      const fc = await patriFetch(CONFIG.PATRIMOINE_GEOJSON + '?v=' + Date.now(), 30000);
+      patriAppliquer(fc, 'depot');
+    }catch(e1){
+      console.warn('Patrimoine : fichier du dépôt indisponible', e1);
+      try{
+        Busy.start('patri', 'Zonages patrimoniaux en direct (IGN, Mérimée)…', {timer:true, max:180000});
+        patriAppliquer(await patriConstruire(t=> Busy.start('patri', t)), 'direct');
+        toast('Fichier des zonages absent du dépôt : données lues en direct (IGN, Mérimée)', 6000);
+      }catch(e2){
+        console.warn('Patrimoine : services en ligne indisponibles', e2);
+        Object.assign(PATRI, {etat:'ko', err:`fichier du dépôt : ${e1.message} ; services en ligne : ${e2.message}`,
+          zones:[], mh:[], communes:[], cache:{}});
+        patriRemplir();
+        patriEtat();
+        toast('Analyse patrimoniale indisponible : le reste de l\'outil fonctionne normalement', 7000);
+        refresh();
+        if(prio) prioRender();
+      }
+    }
+  }finally{
+    Busy.end('patri');
+  }
+}
+
+/* ---------- Statut d'un point ---------- */
+function patriStatut(lat, lon){
+  if(PATRI.etat !== 'ok') return {s:'na', hits:[], commune:null, raison:'donnees'};
+  if(lat === null || lon === null || isNaN(lat) || isNaN(lon)) return {s:'na', hits:[], commune:null, raison:'coord'};
+  const k = cleCoord(lat, lon);
+  if(PATRI.cache[k]) return PATRI.cache[k];
+  const pt = [lon, lat], vus = new Set();
+  const hits = PATRI.zones.filter(z=> patriDans(pt, z))
+    .map(z=> ({cat:z.p.cat, nom:patriNomZone(z.p), theo:z.p.cat === 'theo'}))
+    .filter(h=>{ const c = h.cat + '|' + h.nom; if(vus.has(c)) return false; vus.add(c); return true; })
+    .sort((a, b)=> PATRI_ST[PATRI_CAT[b.cat].s].o - PATRI_ST[PATRI_CAT[a.cat].s].o);
+  const com = PATRI.communes.find(c=> patriDans(pt, c));
+  // aucun zonage : « hors zone » seulement si la commune a des servitudes patrimoniales numérisées
+  const s = hits.length ? PATRI_CAT[hits[0].cat].s : (com && com.p.sup ? 'vert' : 'conf');
+  return PATRI.cache[k] = {s, hits, commune:com ? com.p : null};
+}
+function patriNomZone(p){
+  const m = p.mh;
+  if(m) return `${m.nom}${m.commune ? ', ' + m.commune : ''} (MH ${String(m.statut).toLowerCase()})`;
+  return p.nom || p.idass || 'sans nom';
+}
+const patriLibelle = st => `${PATRI_ST[st.s].e} ${PATRI_ST[st.s].l}`;
+const patriZonagesTexte = st => st.hits.map(h=> `${PATRI_CAT[h.cat].l} : ${h.nom}`).join(' ; ');
+function patriBadge(st){
+  const d = PATRI_ST[st.s];
+  return `<span class="pat pat-${st.s}" title="${esc(d.proc)}">${d.e} ${esc(d.l)}</span>`;
+}
+// bloc « contraintes patrimoniales » des popups et de la fiche terrain
+function patriHtml(st, o={}){
+  const d = PATRI_ST[st.s], max = o.long ? 30 : 5;
+  let h = `<div class="patri">${patriBadge(st)}<div class="proc">${esc(d.proc)}</div>`;
+  if(st.hits.length) h += `<ul>${st.hits.slice(0, max).map(x=> `<li><i class="${x.theo ? 'theo' : ''}" style="background:${PATRI_CAT[x.cat].st.color}"></i>
+      <span>${esc(PATRI_CAT[x.cat].l)} : <b>${esc(x.nom)}</b>${x.theo ? ' <small>(périmètre théorique : monument sans servitude numérisée)</small>' : ''}</span></li>`).join('')}
+    ${st.hits.length > max ? `<li><small>+ ${st.hits.length - max} autre${st.hits.length - max > 1 ? 's' : ''}</small></li>` : ''}</ul>`;
+  if(st.s === 'conf') h += `<div class="avert">${st.commune ? `Commune de ${esc(st.commune.nom)} : aucune servitude patrimoniale numérisée.`
+      : 'Point hors des communes de NCPA : coordonnées à vérifier.'} L'absence de donnée ne prouve pas l'absence de zonage.</div>`;
+  if(st.s === 'na' && st.raison === 'donnees') h += `<div class="avert">${PATRI.etat === 'ko' ? 'Données patrimoniales indisponibles.' : 'Données patrimoniales en cours de chargement…'}</div>`;
+  if(st.s === 'na' && st.raison === 'coord') h += '<div class="avert">Chantier sans coordonnées GPS.</div>';
+  if(o.long && PATRI.etat === 'ok') h += `<div class="proc">Données du ${patriFr(PATRI.meta.date)} · servitudes du Géoportail de l'urbanisme, Mérimée. Indicatif : seul l'ABF fait foi.</div>`;
+  return h + '</div>';
+}
+
+/* ---------- Carte : couches, monuments, cadastre ---------- */
+const patriPastille = st => `<span class="leg-z" style="border-color:${st.color}; background:${st.color}${Math.round(Math.min(.35, st.fillOpacity + .1) * 255).toString(16).padStart(2, '0')};${st.dashArray ? ' border-style:dashed;' : ''}"></span>`;
+function patriAttacher(m, ctl, scope){
+  m.createPane('patri').style.zIndex = 350;      // sous les chantiers (400)
+  m.createPane('patriMH').style.zIndex = 390;
+  const carte = {m, groupes:{}, mh:L.layerGroup()};
+  carte.cadastre = L.tileLayer(CADASTRE_URL, {minZoom:16, maxNativeZoom:19, maxZoom:21, opacity:.9,
+    attribution:'Parcellaire Express (PCI) © IGN / DGFiP'});
+  ctl.addOverlay(carte.cadastre, '<span class="leg-z" style="border-color:#e08600; background:#fff"></span> Parcellaire cadastral <small>(zoom ≥ 16)</small>');
+  ctl.addOverlay(carte.mh, '<span class="dot" style="display:inline-block; vertical-align:-1px; background:#4E342E"></span> Monuments historiques (Mérimée)');
+  PATRI_COUCHES.forEach(c=>{
+    carte.groupes[c.k] = L.layerGroup();
+    ctl.addOverlay(carte.groupes[c.k], patriPastille(PATRI_CAT[c.cats[0]].st) + ' ' + c.l);
+  });
+  // cadastre : avertissements (zoom insuffisant, service en panne) et suivi du chargement
+  m.on('overlayadd', e=>{ if(e.layer === carte.cadastre && m.getZoom() < 16) toast('Cadastre visible à partir du zoom 16 : zoomer sur la carte', 3500); });
+  carte.cadastre.on('tileerror', ()=>{
+    if(carte.errCad) return;
+    carte.errCad = true;
+    toast('Cadastre IGN indisponible pour le moment', 4000);
+    setTimeout(()=> carte.errCad = false, 60000);
+  });
+  carte.cadastre.on('loading', ()=> Busy.start(scope + '-cad', 'Cadastre…', {scope, quiet:true, max:20000}));
+  carte.cadastre.on('load remove', ()=> Busy.end(scope + '-cad'));
+  m.on('click', e=> patriClic(carte, e));
+  PATRI.cartes.push(carte);
+  if(PATRI.etat === 'ok') patriRemplir(carte);
+}
+
+function patriRemplir(seule){
+  (seule ? [seule] : PATRI.cartes).forEach(c=>{
+    Object.values(c.groupes).forEach(g=> g.clearLayers());
+    c.mh.clearLayers();
+    PATRI_COUCHES.forEach(def=>{
+      const fs = PATRI.zones.filter(z=> def.cats.includes(z.p.cat)).map(z=> z.f);
+      if(fs.length) L.geoJSON(fs, {pane:'patri', interactive:false,
+        style: f=> Object.assign({fillColor:PATRI_CAT[f.properties.cat].st.color}, PATRI_CAT[f.properties.cat].st)}).addTo(c.groupes[def.k]);
+    });
+    PATRI.mh.forEach(f=>{
+      const [lon, lat] = f.geometry.coordinates, p = f.properties, cl = /class/i.test(p.statut);
+      L.circleMarker([lat, lon], {pane:'patriMH', radius:cl ? 6 : 5, color:'#fff', weight:1.5,
+        fillColor:cl ? '#4E342E' : '#8D6E63', fillOpacity:1, bubblingMouseEvents:false})
+        .bindTooltip(esc(p.nom), {direction:'top', offset:[0, -5]})
+        .bindPopup(()=> patriPopupMH(p))
+        .addTo(c.mh);
+    });
+  });
+}
+
+function patriPopupMH(p){
+  const cl = /class/i.test(p.statut);
+  return `<div class="pop"><b>🏛 ${esc(p.nom)}</b><br>
+    <span class="l">${esc(p.commune)} · monument historique</span><br>
+    <span class="pat" style="background:${cl ? '#4E342E' : '#8D6E63'}; margin:5px 0">${esc(p.statut)}${p.partiel ? ' (partiellement)' : ''}</span><br>
+    <span class="l">${esc(p.protection)}</span>
+    <div class="acts"><a href="https://pop.culture.gouv.fr/notice/merimee/${encodeURIComponent(p.ref)}" target="_blank" rel="noopener">Notice ${esc(p.ref)} ↗</a></div>
+  </div>`;
+}
+
+// clic sur la carte (hors chantier) : zonages au point et, si le cadastre est affiché, la parcelle
+async function patriClic(carte, e){
+  const m = carte.m;
+  const cad = m.hasLayer(carte.cadastre), zones = Object.values(carte.groupes).some(g=> m.hasLayer(g)) || m.hasLayer(carte.mh);
+  if(!cad && !zones) return;
+  const lat = e.latlng.lat, lon = e.latlng.lng, cadOk = cad && m.getZoom() >= 16;
+  const contenu = cadTxt => `<div class="pop"><b>Au point cliqué</b>
+    ${zones ? patriHtml(patriStatut(lat, lon)) : ''}
+    ${cad ? `<div class="patri">${cadTxt}</div>` : ''}
+    <span class="l">${lat.toFixed(6)}, ${lon.toFixed(6)}</span></div>`;
+  const pop = L.popup({maxWidth:320}).setLatLng(e.latlng).setContent(contenu(cadOk ? '<span class="l">Parcelle : recherche…</span>'
+    : '<span class="l">Zoomer davantage (niveau 16) pour interroger le cadastre.</span>')).openOn(m);
+  if(!cadOk) return;
+  let txt;
+  try{
+    const p = await cadastreParcelle(lat, lon);
+    txt = p ? `🧾 Parcelle <b>section ${esc(p.section)} n° ${esc(String(p.numero).replace(/^0+/, ''))}</b> · ${Number(p.contenance).toLocaleString('fr-FR')} m²
+        <br><span class="l">${esc(p.nom_com || '')} · ${esc(p.idu || '')}</span>`
+      : '<span class="l">Aucune parcelle ici : voirie ou domaine public non cadastré probable.</span>';
+  }catch(err){
+    txt = `<span class="l">Cadastre indisponible (${esc(err.message)}).</span>`;
+  }
+  if(pop.isOpen()) pop.setContent(contenu(txt));   // l'utilisateur a pu fermer ou rouvrir une autre popup entre-temps
+}
+
+// parcelle au point : API Carto cadastre (IGN), repli sur le WFS Parcellaire Express
+async function cadastreParcelle(lat, lon){
+  try{
+    const geom = encodeURIComponent(JSON.stringify({type:'Point', coordinates:[lon, lat]}));
+    const j = await patriFetch(`https://apicarto.ign.fr/api/cadastre/parcelle?geom=${geom}`, 12000);
+    return (j.features || [])[0]?.properties || null;
+  }catch(e){
+    const d = 0.00002, cql = `BBOX(geom,${lon-d},${lat-d},${lon+d},${lat+d},'EPSG:4326')`;   // CQL : lon,lat
+    const j = await patriFetch(`${CONFIG.WFS}?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=CADASTRALPARCELS.PARCELLAIRE_EXPRESS:parcelle`
+      + `&OUTPUTFORMAT=application/json&SRSNAME=EPSG:4326&COUNT=5&CQL_FILTER=${encodeURIComponent(cql)}`, 15000);
+    const f = (j.features || []).find(f=> f.geometry && turf.booleanPointInPolygon([lon, lat], f));
+    return f ? f.properties : null;
+  }
+}
+
+/* ---------- Panneau : état des données, compteur par commune, filtres, légende ---------- */
+function patriEtat(){
+  const box = document.getElementById('patriEtat');
+  if(PATRI.etat === 'ko'){
+    box.className = 'patri-etat ko';
+    box.innerHTML = `<b>Analyse patrimoniale indisponible.</b> Les chantiers sont marqués « ❔ Non analysé » (jamais « hors zone »).
+      Le reste de l'outil fonctionne normalement.<br><small>${esc(PATRI.err)}</small><br>
+      <button id="patriRetry" style="min-height:32px; padding:4px 10px; font-size:13px; margin-top:5px">Réessayer</button>`;
+  } else if(PATRI.etat === 'ok'){
+    const md = PATRI.meta, n = c=> PATRI.zones.filter(z=> z.p.cat === c).length;
+    box.className = 'patri-etat';
+    box.innerHTML = `Données du <b>${patriFr(md.date)}</b> (${PATRI.src === 'depot' ? 'fichier du dépôt' : 'lues en direct'})${md.gpu_maj ? `, servitudes publiées au GPU jusqu'au ${patriFr(md.gpu_maj)}` : ''}.<br>
+      ${n('pda')} PDA · ${n('mh500')} rayons 500 m · ${n('theo')} périmètre${n('theo') > 1 ? 's' : ''} théorique${n('theo') > 1 ? 's' : ''} · ${n('spr')} SPR ·
+      ${n('site_i')} site${n('site_i') > 1 ? 's' : ''} inscrit${n('site_i') > 1 ? 's' : ''} · ${n('site_c') + n('site_x')} classé${n('site_c') + n('site_x') > 1 ? 's' : ''} · ${PATRI.mh.length} MH.
+      ${(md.avert || []).map(a=> `<div class="avert">${esc(a)}</div>`).join('')}`;
+  } else {
+    box.className = 'patri-etat';
+    box.textContent = 'Chargement des zonages patrimoniaux…';
+  }
+  patriSansSup();
+  patriLegende();
+}
+
+function patriSansSup(){
+  const box = document.getElementById('patriSansSup');
+  if(PATRI.etat !== 'ok'){ box.innerHTML = ''; return; }
+  const ns = PATRI.communes.filter(c=> !c.p.sup).sort((a, b)=> a.p.nom.localeCompare(b.p.nom, 'fr'));
+  const sc = PATRI.meta.mhSansCoord || [];
+  box.innerHTML = (ns.length ? `<div class="avert">⚠ <b>${ns.length} commune${ns.length > 1 ? 's' : ''} sans servitude patrimoniale numérisée</b> :
+      ${ns.map(c=> esc(c.p.nom)).join(', ')}. Leurs chantiers sont « ⚪ À confirmer » : l'absence de donnée ne prouve pas
+      l'absence de zonage (vérifier auprès de l'UDAP du Calvados).</div>` : '')
+    + (sc.length ? `<div class="avert">MH sans coordonnées dans Mérimée, non pris en compte :
+      ${sc.map(x=> `${esc(x.nom)} (${esc(x.commune)}, ${esc(x.ref)})`).join(', ')}.</div>` : '');
+}
+
+// cases « contrainte patrimoniale » (carte terrain et priorisation), avec leur compteur
+function patriMajFiltres(sel, n){
+  const box = document.querySelector(sel);
+  if(!box) return;
+  if(!box.children.length) box.innerHTML = PATRI_ORDRE.map(s=>
+    `<label class="chk"><input type="checkbox" value="${s}" checked>${patriBadge({s})}<span class="n" data-pn="${s}"></span></label>`).join('');
+  PATRI_ORDRE.forEach(s=>{
+    const el = box.querySelector(`[data-pn="${s}"]`);
+    el.textContent = n[s] || 0;
+    // « Non analysé » n'encombre pas la liste quand l'analyse a fonctionné et qu'aucun chantier n'est concerné
+    el.parentNode.style.display = s === 'na' && PATRI.etat === 'ok' && !n.na && el.parentNode.querySelector('input').checked ? 'none' : '';
+  });
+}
+
+// compteur par commune (statuts en colonnes) ; clic sur une ligne = filtre sur la commune
+function patriPanneau(liste, fc){
+  const box = document.getElementById('patriCom');
+  if(PATRI.etat !== 'ok' || !liste.length){ box.innerHTML = ''; return; }
+  const cols = PATRI_ORDRE.filter(s=> s !== 'na' || liste.some(x=> x.s === 'na'));
+  const par = new Map();
+  liste.forEach(x=>{
+    const c = x.commune || '(sans commune)';
+    if(!par.has(c)) par.set(c, {nosup:false});
+    const o = par.get(c);
+    o[x.s] = (o[x.s] || 0) + 1;
+    if(x.s === 'conf') o.nosup = true;
+  });
+  const tot = {};
+  const lignes = [...par.entries()].sort((a, b)=> a[0].localeCompare(b[0], 'fr')).map(([c, o])=>{
+    cols.forEach(s=> tot[s] = (tot[s] || 0) + (o[s] || 0));
+    return `<tr data-c="${esc(c)}" class="${c === fc ? 'sel' : ''}${o.nosup ? ' nosup' : ''}" title="${c === fc ? 'Toutes les communes' : 'Filtrer sur ' + esc(c)}">
+      <td>${esc(c)}</td>${cols.map(s=> o[s] ? `<td>${o[s]}</td>` : '<td class="z">·</td>').join('')}</tr>`;
+  });
+  box.innerHTML = `<table class="pcom"><thead><tr><th>Commune</th>${cols.map(s=> `<th title="${esc(PATRI_ST[s].l)}">${PATRI_ST[s].e}</th>`).join('')}</tr></thead>
+    <tbody>${lignes.join('')}</tbody>
+    <tfoot><tr><td>Total</td>${cols.map(s=> `<td>${tot[s] || 0}</td>`).join('')}</tr></tfoot></table>
+    <p class="muted" style="margin:4px 0 0">Selon les filtres type et relevé. ⚠ = commune sans servitude numérisée.</p>`;
+}
+
+function patriLegende(){
+  document.getElementById('legPatri').innerHTML = PATRI_ORDRE.filter(s=> s !== 'na' || PATRI.etat !== 'ok').map(s=>
+    `<div class="chk"><span class="dot" style="background:var(${PATRI_ST[s].c})${s === 'conf' ? '; border:2px dashed #6b7178' : ''}"></span>${PATRI_ST[s].e} ${esc(PATRI_ST[s].l)}</div>`).join('');
+  document.getElementById('legZones').innerHTML = `<label class="f">Zonages (sélecteur de couches ⧉, en haut à droite)</label>`
+    + PATRI_COUCHES.map(c=> `<div class="chk" style="font-size:12.5px">${patriPastille(PATRI_CAT[c.cats[0]].st)} ${esc(c.l)}</div>`).join('')
+    + '<div class="chk" style="font-size:12.5px"><span class="dot" style="background:#4E342E"></span> Monument historique classé '
+    + '<span class="dot" style="background:#8D6E63; margin-left:6px"></span> inscrit</div>';
+}
+
+function patriSetCouleur(m, sansMaj){
+  couleurMode = m;
+  try { localStorage.setItem('ncpa_couleur_marqueurs', m); } catch(e){}
+  document.querySelectorAll('#couleurMode button').forEach(b=> b.classList.toggle('on', b.dataset.m === m));
+  document.getElementById('legType').hidden = m !== 'type';
+  document.getElementById('legPatri').hidden = m !== 'patri';
+  if(!sansMaj) refresh();
+}
+
+/* ---------- Export Excel des statuts ---------- */
+function patriExport(){
+  if(PATRI.etat !== 'ok') return toast('Analyse patrimoniale indisponible : export impossible', 4000);
+  // liste : onglet de priorisation (rang, existant / à créer) s'il existe, sinon les chantiers de la carte terrain
+  let items;
+  if(prio && prio.length){
+    prioLier();
+    items = prio.slice().sort((a, b)=> a.rang - b.rang).map(p=> ({rang:p.rang, ordre:p.ordre ?? '', commune:p.commune, insee:p.insee,
+      type:p.typeBrut || p.ty.l, etat:p.etat, lat:p.lat, lon:p.lon, pat:p.pat}));
+  } else {
+    items = rows.map(row=>{
+      const lat = nb(val(row, 'lat')), lon = nb(val(row, 'lon'));
+      return {rang:'', ordre:'', commune:val(row, 'commune'), insee:'', type:typeOf(row).l, etat:val(row, 'travaux'),
+        lat, lon, pat:patriStatut(lat, lon)};
+    });
+  }
+  if(!items.length) return toast('Aucun chantier à exporter');
+  const date = new Date().toISOString().slice(0, 10), wb = XLSX.utils.book_new();
+
+  // 1. chantiers
+  const ENT = ['Rang', 'Ordre commune', 'Commune', 'Code INSEE', 'Type', 'Existant / à créer', 'Latitude', 'Longitude',
+    'Statut patrimonial', 'Procédure', 'Zonages concernés', 'Périmètre théorique', 'Commune sans donnée SUP', 'Google Maps'];
+  const ws = XLSX.utils.aoa_to_sheet([ENT].concat(items.map(x=> [x.rang, x.ordre, x.commune, x.insee, x.type, x.etat,
+    x.lat ?? '', x.lon ?? '', patriLibelle(x.pat), PATRI_ST[x.pat.s].proc, patriZonagesTexte(x.pat),
+    x.pat.hits.some(h=> h.theo) ? 'Oui' : '', x.pat.s === 'conf' ? 'Oui' : '', x.lat !== null ? 'Ouvrir' : ''])));
+  items.forEach((x, k)=>{
+    const c = ws[XLSX.utils.encode_cell({r:k+1, c:ENT.length - 1})];
+    if(c && x.lat !== null) c.l = {Target:`https://www.google.com/maps?q=${x.lat},${x.lon}`, Tooltip:'Ouvrir dans Google Maps'};
+  });
+  ws['!cols'] = [7, 8, 24, 10, 28, 18, 11, 11, 17, 50, 70, 11, 12, 10].map(w=> ({wch:w}));
+  ws['!autofilter'] = {ref:XLSX.utils.encode_range({s:{r:0, c:0}, e:{r:items.length, c:ENT.length - 1}})};
+  XLSX.utils.book_append_sheet(wb, ws, 'Chantiers');
+
+  // 2. par commune
+  const par = new Map();
+  items.forEach(x=>{
+    const c = x.commune || '(sans commune)';
+    if(!par.has(c)) par.set(c, {insee:x.insee, com:x.pat.commune, n:{}});
+    const o = par.get(c);
+    o.n[x.pat.s] = (o.n[x.pat.s] || 0) + 1;
+    if(!o.com && x.pat.commune) o.com = x.pat.commune;
+  });
+  const lc = [...par.entries()].sort((a, b)=> a[0].localeCompare(b[0], 'fr')).map(([c, o])=> [c, o.insee || (o.com ? o.com.code : ''),
+    PATRI_ORDRE.reduce((t, s)=> t + (o.n[s] || 0), 0), ...PATRI_ORDRE.map(s=> o.n[s] || 0),
+    o.com ? (o.com.sup ? 'Oui' : 'Non') : '?', o.com ? o.com.nbMH : '']);
+  const ws2 = XLSX.utils.aoa_to_sheet([['Commune', 'Code INSEE', 'Chantiers', ...PATRI_ORDRE.map(s=> patriLibelle({s})),
+    'Servitudes patrimoniales numérisées', 'MH (Mérimée)']].concat(lc));
+  ws2['!cols'] = [26, 10, 10, 15, 15, 15, 15, 15, 15, 16, 12].map(w=> ({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws2, 'Par commune');
+
+  // 3. communes sans servitude
+  const ns = PATRI.communes.filter(c=> !c.p.sup).sort((a, b)=> a.p.nom.localeCompare(b.p.nom, 'fr'));
+  const ws3 = XLSX.utils.aoa_to_sheet([['Commune', 'Code INSEE', 'Chantiers', 'MH (Mérimée)', 'À faire']].concat(ns.map(c=> [c.p.nom, c.p.code,
+    items.filter(x=> x.pat.commune && x.pat.commune.code === c.p.code).length, c.p.nbMH,
+    'Confirmer l\'absence de zonage patrimonial auprès de l\'UDAP du Calvados'])));
+  ws3['!cols'] = [26, 10, 10, 12, 60].map(w=> ({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws3, 'Communes sans SUP');
+
+  // 4. sources
+  const md = PATRI.meta;
+  const ws4 = XLSX.utils.aoa_to_sheet([
+    ['Statuts patrimoniaux des chantiers (dalles béton) — NCPA'],
+    [`Export du ${new Date().toLocaleDateString('fr-FR')} · données patrimoniales du ${patriFr(md.date)} (${PATRI.src === 'depot' ? 'fichier du dépôt' : 'lues en direct'})`],
+    ['Statut indicatif : seuls l\'Architecte des Bâtiments de France (UDAP du Calvados) et le service instructeur font foi.'],
+    [],
+    ['Règles'],
+    ...PATRI_ORDRE.map(s=> [patriLibelle({s}), PATRI_ST[s].proc]),
+    ['', 'Statut retenu : le plus contraignant des zonages touchés par le chantier.'],
+    ['', '« Périmètre théorique » : cercle de 500 m autour d\'un monument Mérimée sans servitude AC1 numérisée.'],
+    [],
+    ['Sources'],
+    ...(md.sources || []).map(s=> ['', s]),
+    ...(md.avert || []).map(a=> ['Avertissement', a])
+  ]);
+  ws4['!cols'] = [{wch:22}, {wch:110}];
+  XLSX.utils.book_append_sheet(wb, ws4, 'Sources');
+  XLSX.writeFile(wb, `statuts_patrimoniaux_chantiers_${date}.xlsx`);
+  toast('Statuts patrimoniaux exportés');
+}
+
+/* ---------- Mise à jour des données (ordinateur) ---------- */
+function patriResume(){
+  const cats = {};
+  PATRI.zones.forEach(z=> cats[z.p.cat] = (cats[z.p.cat] || 0) + 1);
+  return {cats, mh:new Map(PATRI.mh.map(f=> [f.properties.ref, f.properties.nom]))};
+}
+async function patriMettreAJour(){
+  const btn = document.getElementById('patriMaj');
+  if(btn.disabled) return;
+  btn.disabled = true;
+  const avant = PATRI.etat === 'ok' ? patriResume() : null;
+  Busy.start('patri-maj', 'Mise à jour des données patrimoniales…', {timer:true, max:300000});
+  try{
+    const fc = await patriConstruire(t=> Busy.start('patri-maj', 'Mise à jour : ' + t.charAt(0).toLowerCase() + t.slice(1)));
+    patriAppliquer(fc, 'direct');
+    dl('patrimoine_ncpa.geojson', JSON.stringify(fc), 'application/geo+json');
+    const apres = patriResume();
+    let diff = 'Première extraction.';
+    if(avant){
+      const lig = Object.keys(PATRI_CAT).map(c=>{
+        const a = avant.cats[c] || 0, b = apres.cats[c] || 0;
+        return a !== b ? `${PATRI_CAT[c].l} : ${a} → ${b}` : '';
+      }).filter(Boolean);
+      const plus = [...apres.mh].filter(([r])=> !avant.mh.has(r)).map(([, n])=> n);
+      const moins = [...avant.mh].filter(([r])=> !apres.mh.has(r)).map(([, n])=> n);
+      if(plus.length) lig.push('MH ajoutés : ' + plus.join(', '));
+      if(moins.length) lig.push('MH retirés : ' + moins.join(', '));
+      diff = lig.length ? 'Changements : ' + lig.map(esc).join(' · ') : 'Aucun changement par rapport aux données précédentes.';
+    }
+    const box = document.getElementById('patriEtat');
+    box.className = 'patri-etat maj';
+    box.innerHTML = `<b>Données mises à jour</b> et déjà utilisées dans cette page. ${diff}<br>
+      Le fichier <b>patrimoine_ncpa.geojson</b> a été téléchargé. Pour le publier pour tout le monde :
+      <ol><li>ouvrir <a href="${esc(CONFIG.GITHUB_UPLOAD)}" target="_blank" rel="noopener">la page de dépôt GitHub</a> ;</li>
+        <li>y glisser le fichier téléchargé (il remplace l'ancien) ;</li>
+        <li>cliquer sur « Commit changes ». L'outil en ligne l'utilise une à deux minutes plus tard.</li></ol>`;
+    toast('Données patrimoniales mises à jour : fichier téléchargé', 5000);
+  }catch(e){
+    toast('Mise à jour impossible : ' + e.message + '. Les données actuelles restent utilisées.', 8000);
+  }finally{
+    Busy.end('patri-maj');
+    btn.disabled = false;
+  }
+}
+
+/* ---------- Branchements ---------- */
+patriAttacher(map, ctlTerrain, 'm1');
+patriMajFiltres('#fPatri', {});
+patriMajFiltres('#pPatri', {});
+patriSetCouleur(couleurMode, true);
+patriEtat();
+document.getElementById('fPatri').addEventListener('change', refresh);
+document.getElementById('couleurMode').addEventListener('click', e=>{
+  const b = e.target.closest('button[data-m]');
+  if(b && b.dataset.m !== couleurMode) patriSetCouleur(b.dataset.m);
+});
+document.getElementById('patriCom').addEventListener('click', e=>{
+  const tr = e.target.closest('tr[data-c]');
+  if(!tr) return;
+  const sel = document.getElementById('fCommune');
+  const c = tr.dataset.c;
+  sel.value = sel.value === c ? '' : ([...sel.options].some(o=> o.value === c) ? c : '');
+  refresh();
+  const pts = Object.values(markers).map(m=> m.getLatLng());
+  if(sel.value && pts.length) map.fitBounds(pts, {padding:[40, 40], maxZoom:16});
+});
+document.getElementById('patriEtat').addEventListener('click', e=>{ if(e.target.closest('#patriRetry')) patriCharger(); });
+document.getElementById('patriXlsx').onclick = patriExport;
+document.getElementById('patriMaj').onclick = patriMettreAJour;
+
+/* =======================================================================
    ÉVÉNEMENTS
    ======================================================================= */
 // tiroir latéral (mobile)
@@ -3117,6 +3982,7 @@ if(location.hash === '#priorisation') setVue('prio');
 else if(/^#(phasage|calendrier)$/.test(location.hash)) setVue('phase');
 loadReleves();
 loadFromUrl(CONFIG.SOURCE_XLSX);
+patriCharger();
 </script>
 </body>
 </html>
