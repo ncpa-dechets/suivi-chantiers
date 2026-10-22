@@ -687,7 +687,7 @@ button.zi-btn:hover{background:#E3F2FD}
       <div class="patri-etat" id="patriEtat">Chargement des zonages patrimoniaux…</div>
       <div id="patriCom"></div>
       <div id="patriSansSup"></div>
-      <button class="wide" id="patriXlsx">Statuts patrimoniaux → Excel</button>
+      <button class="wide" id="patriXlsx">Contraintes ABF par chantier → Excel</button>
       <button class="wide ordi-seul" id="patriMaj">Mettre à jour les données (IGN, Mérimée)</button>
       <p class="muted">Statut indicatif, calculé à partir des servitudes AC1 / AC2 / AC4 du Géoportail de l'urbanisme et de la base Mérimée.
         Seuls l'ABF (UDAP du Calvados) et le service instructeur font foi.</p>
@@ -3583,7 +3583,7 @@ function patriStatut(lat, lon){
   if(PATRI.cache[k]) return PATRI.cache[k];
   const pt = [lon, lat], vus = new Set();
   const hits = PATRI.zones.filter(z=> patriDans(pt, z))
-    .map(z=> ({cat:z.p.cat, nom:patriNomZone(z.p), theo:z.p.cat === 'theo'}))
+    .map(z=> ({cat:z.p.cat, nom:patriNomZone(z.p), theo:z.p.cat === 'theo', mh:z.p.mh || null}))
     .filter(h=>{ const c = h.cat + '|' + h.nom; if(vus.has(c)) return false; vus.add(c); return true; })
     .sort((a, b)=> PATRI_ST[PATRI_CAT[b.cat].s].o - PATRI_ST[PATRI_CAT[a.cat].s].o);
   const com = PATRI.communes.find(c=> patriDans(pt, c));
@@ -3940,18 +3940,27 @@ function patriExport(){
   }
   if(!items.length) return toast('Aucun chantier à exporter');
   const date = new Date().toISOString().slice(0, 10), wb = XLSX.utils.book_new();
+  // monuments historiques à l'origine de la contrainte, et monument le plus proche (repère pour l'échange avec l'ABF)
+  const mhCause = st => [...new Set(st.hits.filter(h=> h.mh).map(h=> `${h.mh.nom} (${h.mh.commune ? h.mh.commune + ', ' : ''}${String(h.mh.statut).toLowerCase()})`))].join(' ; ');
+  const mhProche = x => {
+    if(x.lat === null || !PATRI.mh.length) return ['', ''];
+    let best = null, d = Infinity;
+    PATRI.mh.forEach(m=>{ const k = turf.distance([x.lon, x.lat], m.geometry.coordinates, {units:'meters'}); if(k < d){ d = k; best = m.properties; } });
+    return [`${best.nom}${best.commune ? ' (' + best.commune + ')' : ''}`, Math.round(d)];
+  };
 
   // 1. chantiers
   const ENT = ['Rang', 'Ordre commune', 'Commune', 'Code INSEE', 'Type', 'Existant / à créer', 'Latitude', 'Longitude',
-    'Statut patrimonial', 'Procédure', 'Zonages concernés', 'Périmètre théorique', 'Commune sans donnée SUP', 'Google Maps'];
+    'Statut patrimonial', 'Procédure', 'Zonages concernés', 'Monument(s) historique(s) en cause', 'MH le plus proche', 'Distance au MH (m)',
+    'Périmètre théorique', 'Commune sans donnée SUP', 'Google Maps'];
   const ws = XLSX.utils.aoa_to_sheet([ENT].concat(items.map(x=> [x.rang, x.ordre, x.commune, x.insee, x.type, x.etat,
-    x.lat ?? '', x.lon ?? '', patriLibelle(x.pat), PATRI_ST[x.pat.s].proc, patriZonagesTexte(x.pat),
+    x.lat ?? '', x.lon ?? '', patriLibelle(x.pat), PATRI_ST[x.pat.s].proc, patriZonagesTexte(x.pat), mhCause(x.pat), ...mhProche(x),
     x.pat.hits.some(h=> h.theo) ? 'Oui' : '', x.pat.s === 'conf' ? 'Oui' : '', x.lat !== null ? 'Ouvrir' : ''])));
   items.forEach((x, k)=>{
     const c = ws[XLSX.utils.encode_cell({r:k+1, c:ENT.length - 1})];
     if(c && x.lat !== null) c.l = {Target:`https://www.google.com/maps?q=${x.lat},${x.lon}`, Tooltip:'Ouvrir dans Google Maps'};
   });
-  ws['!cols'] = [7, 8, 24, 10, 28, 18, 11, 11, 17, 50, 70, 11, 12, 10].map(w=> ({wch:w}));
+  ws['!cols'] = [7, 8, 24, 10, 28, 18, 11, 11, 17, 50, 70, 45, 35, 10, 11, 12, 10].map(w=> ({wch:w}));
   ws['!autofilter'] = {ref:XLSX.utils.encode_range({s:{r:0, c:0}, e:{r:items.length, c:ENT.length - 1}})};
   XLSX.utils.book_append_sheet(wb, ws, 'Chantiers');
 
@@ -3959,17 +3968,18 @@ function patriExport(){
   const par = new Map();
   items.forEach(x=>{
     const c = x.commune || '(sans commune)';
-    if(!par.has(c)) par.set(c, {insee:x.insee, com:x.pat.commune, n:{}});
+    if(!par.has(c)) par.set(c, {insee:x.insee, com:x.pat.commune, n:{}, zon:new Set()});
     const o = par.get(c);
     o.n[x.pat.s] = (o.n[x.pat.s] || 0) + 1;
+    x.pat.hits.forEach(h=> o.zon.add(`${PATRI_CAT[h.cat].l} : ${h.nom}`));
     if(!o.com && x.pat.commune) o.com = x.pat.commune;
   });
   const lc = [...par.entries()].sort((a, b)=> a[0].localeCompare(b[0], 'fr')).map(([c, o])=> [c, o.insee || (o.com ? o.com.code : ''),
     PATRI_ORDRE.reduce((t, s)=> t + (o.n[s] || 0), 0), ...PATRI_ORDRE.map(s=> o.n[s] || 0),
-    o.com ? (o.com.sup ? 'Oui' : 'Non') : '?', o.com ? o.com.nbMH : '']);
+    o.com ? (o.com.sup ? 'Oui' : 'Non') : '?', o.com ? o.com.nbMH : '', [...o.zon].sort().join(' ; ')]);
   const ws2 = XLSX.utils.aoa_to_sheet([['Commune', 'Code INSEE', 'Chantiers', ...PATRI_ORDRE.map(s=> patriLibelle({s})),
-    'Servitudes patrimoniales numérisées', 'MH (Mérimée)']].concat(lc));
-  ws2['!cols'] = [26, 10, 10, 15, 15, 15, 15, 15, 15, 16, 12].map(w=> ({wch:w}));
+    'Servitudes patrimoniales numérisées', 'MH (Mérimée)', 'Zonages et monuments en cause']].concat(lc));
+  ws2['!cols'] = [26, 10, 10, 15, 15, 15, 15, 15, 15, 16, 12, 90].map(w=> ({wch:w}));
   XLSX.utils.book_append_sheet(wb, ws2, 'Par commune');
 
   // 3. communes sans servitude
@@ -3998,8 +4008,8 @@ function patriExport(){
   ]);
   ws4['!cols'] = [{wch:22}, {wch:110}];
   XLSX.utils.book_append_sheet(wb, ws4, 'Sources');
-  XLSX.writeFile(wb, `statuts_patrimoniaux_chantiers_${date}.xlsx`);
-  toast('Statuts patrimoniaux exportés');
+  XLSX.writeFile(wb, `contraintes_ABF_chantiers_${date}.xlsx`);
+  toast('Contraintes ABF exportées');
 }
 
 /* ---------- Mise à jour des données (ordinateur) ---------- */
