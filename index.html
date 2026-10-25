@@ -688,6 +688,8 @@ button.zi-btn:hover{background:#E3F2FD}
       <div id="patriCom"></div>
       <div id="patriSansSup"></div>
       <button class="wide" id="patriXlsx">Contraintes ABF par chantier → Excel</button>
+      <button class="wide" id="patriGeoCh" title="Points des chantiers avec leur statut patrimonial (GeoJSON, WGS84)">Chantiers → GeoJSON (carte ABF)</button>
+      <button class="wide" id="patriGeoZ" title="Monuments historiques, zonages patrimoniaux et contours des communes (GeoJSON, WGS84)">Monuments et zonages → GeoJSON (carte ABF)</button>
       <button class="wide ordi-seul" id="patriMaj">Mettre à jour les données (IGN, Mérimée)</button>
       <p class="muted">Statut indicatif, calculé à partir des servitudes AC1 / AC2 / AC4 du Géoportail de l'urbanisme et de la base Mérimée.
         Seuls l'ABF (UDAP du Calvados) et le service instructeur font foi.</p>
@@ -3922,32 +3924,87 @@ function zonagesInfo(){
 }
 const zonagesFermer = ()=>{ const d = document.getElementById('zInfo'); if(d.close) d.close(); else d.removeAttribute('open'); };
 
+/* ---------- Liste des chantiers et monuments en cause (exports Excel et GeoJSON) ---------- */
+// liste : onglet de priorisation (rang, existant / à créer) s'il existe, sinon les chantiers de la carte terrain
+function patriChantiers(){
+  if(prio && prio.length){
+    prioLier();
+    return prio.slice().sort((a, b)=> a.rang - b.rang).map(p=> ({rang:p.rang, ordre:p.ordre ?? '', commune:p.commune, insee:p.insee,
+      type:p.typeBrut || p.ty.l, etat:p.etat, lat:p.lat, lon:p.lon, pat:p.pat, rv:p.rv}));
+  }
+  return rows.map(row=>{
+    const lat = nb(val(row, 'lat')), lon = nb(val(row, 'lon'));
+    return {rang:'', ordre:'', commune:val(row, 'commune'), insee:'', type:typeOf(row).l, etat:val(row, 'travaux'),
+      lat, lon, pat:patriStatut(lat, lon), rv:null};
+  });
+}
+// monuments historiques à l'origine de la contrainte, et monument le plus proche (repère pour l'échange avec l'ABF)
+const patriMhCause = st => [...new Set(st.hits.filter(h=> h.mh).map(h=> `${h.mh.nom} (${h.mh.commune ? h.mh.commune + ', ' : ''}${String(h.mh.statut).toLowerCase()})`))].join(' ; ');
+function patriMhProche(x){
+  if(x.lat === null || !PATRI.mh.length) return ['', ''];
+  let best = null, d = Infinity;
+  PATRI.mh.forEach(m=>{ const k = turf.distance([x.lon, x.lat], m.geometry.coordinates, {units:'meters'}); if(k < d){ d = k; best = m.properties; } });
+  return [`${best.nom}${best.commune ? ' (' + best.commune + ')' : ''}`, Math.round(d)];
+}
+
+/* ---------- Exports GeoJSON pour la carte interactive de l'ABF ----------
+   deux fichiers en WGS84 (EPSG:4326), attributs à plat (lisibles dans QGIS, uMap, Leaflet…) :
+   1. les chantiers (points) avec leur statut patrimonial ;
+   2. les contours des communes, les zonages patrimoniaux (polygones) et les monuments historiques (points) */
+const patriAvert = 'Statut indicatif : seuls l\'Architecte des Bâtiments de France (UDAP du Calvados) et le service instructeur font foi.';
+function patriGeoChantiers(){
+  if(PATRI.etat !== 'ok') return toast('Analyse patrimoniale indisponible : export impossible', 4000);
+  const items = patriChantiers(), pts = items.filter(x=> x.lat !== null), sans = items.length - pts.length;
+  if(!pts.length) return toast('Aucun chantier géolocalisé à exporter');
+  const fc = {type:'FeatureCollection', name:'chantiers_ncpa',
+    metadata:{titre:'Chantiers dalles béton — NCPA', date:new Date().toISOString(), avertissement:patriAvert,
+      donnees_patrimoniales:PATRI.meta.date || '', sans_coordonnees:sans},
+    features:pts.map(x=>{
+      const [mhp, mhd] = patriMhProche(x), st = PATRI_ST[x.pat.s];
+      return {type:'Feature', geometry:{type:'Point', coordinates:[x.lon, x.lat]}, properties:{
+        rang:x.rang, ordre_commune:x.ordre, commune:x.commune, insee:x.insee || (x.pat.commune ? x.pat.commune.code : ''),
+        type:x.type, existant_a_creer:x.etat, releve:x.rv ? 'Fait' : 'À faire', difficulte:x.rv ? x.rv.difficulte || '' : '',
+        statut_code:x.pat.s, statut:st.l, procedure:st.proc, couleur:patriCouleur(x.pat.s),
+        zonages:patriZonagesTexte(x.pat), mh_en_cause:patriMhCause(x.pat), mh_proche:mhp, mh_distance_m:mhd,
+        perimetre_theorique:x.pat.hits.some(h=> h.theo) ? 'Oui' : 'Non', lat:x.lat, lon:x.lon}};
+    })};
+  dl(`chantiers_ncpa_${new Date().toISOString().slice(0, 10)}.geojson`, JSON.stringify(fc), 'application/geo+json');
+  toast(`${pts.length} chantiers exportés` + (sans ? ` (${sans} sans coordonnées, non inclus)` : ''), 5000);
+}
+function patriGeoZonages(){
+  if(PATRI.etat !== 'ok') return toast('Analyse patrimoniale indisponible : export impossible', 4000);
+  const fs = [];
+  // ordre d'affichage habituel : communes dessous, zonages du plus étendu au plus précis, monuments dessus
+  PATRI.communes.forEach(c=> fs.push({type:'Feature', geometry:c.f.geometry, properties:{couche:'commune', categorie:'Commune',
+    nom:c.p.nom, insee:c.p.code, servitudes_numerisees:c.p.sup ? 'Oui' : 'Non', nb_mh:c.p.nbMH}}));
+  PATRI_COUCHES.flatMap(def=> PATRI.zones.filter(z=> def.cats.includes(z.p.cat))).forEach(z=>{
+    const p = z.p, cat = PATRI_CAT[p.cat], m = p.mh || {};
+    fs.push({type:'Feature', geometry:z.f.geometry, properties:{couche:'zonage', categorie:cat.l, cat_code:p.cat, servitude:p.sup || '',
+      statut_code:cat.s, statut:PATRI_ST[cat.s].l, procedure:PATRI_ST[cat.s].proc, couleur:cat.st.color,
+      nom:patriNomZone(p), type_assiette:p.typeass || '', type_site:p.typesite || '', id_assiette:p.idass || '',
+      date_acte:p.date || '', acte:p.acte || '', perimetre_theorique:p.cat === 'theo' ? 'Oui' : 'Non',
+      mh_ref:m.ref || '', mh_nom:m.nom || '', mh_statut:m.statut || '', mh_commune:m.commune || ''}});
+  });
+  PATRI.mh.forEach(f=>{
+    const p = f.properties;
+    fs.push({type:'Feature', geometry:f.geometry, properties:{couche:'monument', categorie:'Monument historique',
+      nom:p.nom, commune:p.commune, insee:p.insee, mh_ref:p.ref, mh_statut:p.statut, partiel:p.partiel ? 'Oui' : 'Non',
+      protection:p.protection, couleur:/class/i.test(p.statut) ? '#4E342E' : '#8D6E63',
+      notice:`https://pop.culture.gouv.fr/notice/merimee/${encodeURIComponent(p.ref)}`}});
+  });
+  const fc = {type:'FeatureCollection', name:'patrimoine_ncpa',
+    metadata:Object.assign({}, PATRI.meta, {export:new Date().toISOString(), avertissement:patriAvert}), features:fs};
+  dl(`patrimoine_ncpa_${new Date().toISOString().slice(0, 10)}.geojson`, JSON.stringify(fc), 'application/geo+json');
+  toast(`Patrimoine exporté : ${PATRI.mh.length} monuments, ${PATRI.zones.length} zonages, ${PATRI.communes.length} communes`, 5000);
+}
+
 /* ---------- Export Excel des statuts ---------- */
 function patriExport(){
   if(PATRI.etat !== 'ok') return toast('Analyse patrimoniale indisponible : export impossible', 4000);
-  // liste : onglet de priorisation (rang, existant / à créer) s'il existe, sinon les chantiers de la carte terrain
-  let items;
-  if(prio && prio.length){
-    prioLier();
-    items = prio.slice().sort((a, b)=> a.rang - b.rang).map(p=> ({rang:p.rang, ordre:p.ordre ?? '', commune:p.commune, insee:p.insee,
-      type:p.typeBrut || p.ty.l, etat:p.etat, lat:p.lat, lon:p.lon, pat:p.pat}));
-  } else {
-    items = rows.map(row=>{
-      const lat = nb(val(row, 'lat')), lon = nb(val(row, 'lon'));
-      return {rang:'', ordre:'', commune:val(row, 'commune'), insee:'', type:typeOf(row).l, etat:val(row, 'travaux'),
-        lat, lon, pat:patriStatut(lat, lon)};
-    });
-  }
+  const items = patriChantiers();
   if(!items.length) return toast('Aucun chantier à exporter');
   const date = new Date().toISOString().slice(0, 10), wb = XLSX.utils.book_new();
-  // monuments historiques à l'origine de la contrainte, et monument le plus proche (repère pour l'échange avec l'ABF)
-  const mhCause = st => [...new Set(st.hits.filter(h=> h.mh).map(h=> `${h.mh.nom} (${h.mh.commune ? h.mh.commune + ', ' : ''}${String(h.mh.statut).toLowerCase()})`))].join(' ; ');
-  const mhProche = x => {
-    if(x.lat === null || !PATRI.mh.length) return ['', ''];
-    let best = null, d = Infinity;
-    PATRI.mh.forEach(m=>{ const k = turf.distance([x.lon, x.lat], m.geometry.coordinates, {units:'meters'}); if(k < d){ d = k; best = m.properties; } });
-    return [`${best.nom}${best.commune ? ' (' + best.commune + ')' : ''}`, Math.round(d)];
-  };
+  const mhCause = patriMhCause, mhProche = patriMhProche;
 
   // 1. chantiers
   const ENT = ['Rang', 'Ordre commune', 'Commune', 'Code INSEE', 'Type', 'Existant / à créer', 'Latitude', 'Longitude',
@@ -4080,6 +4137,8 @@ document.getElementById('patriCom').addEventListener('click', e=>{
 });
 document.getElementById('patriEtat').addEventListener('click', e=>{ if(e.target.closest('#patriRetry')) patriCharger(); });
 document.getElementById('patriXlsx').onclick = patriExport;
+document.getElementById('patriGeoCh').onclick = patriGeoChantiers;
+document.getElementById('patriGeoZ').onclick = patriGeoZonages;
 // « Plus d'infos sur les zonages » : boutons du panneau et de la fiche (Échap ferme nativement)
 document.addEventListener('click', e=>{ if(e.target.closest('[data-zinfo]')) zonagesInfo(); });
 document.getElementById('zInfoClose').onclick = zonagesFermer;
